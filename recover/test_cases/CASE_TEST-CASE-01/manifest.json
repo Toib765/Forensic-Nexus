@@ -1,0 +1,61 @@
+{
+  "job_id": "TEST-CASE-01",
+  "target_path": "/home/kali/Desktop/Forensic Nexus/recover/synthetic_drive.raw",
+  "target_size_bytes": 4353370,
+  "scan_start_time": 1788164170.8635473,
+  "scan_end_time": 1788164170.9055772,
+  "total_files_recovered": 3,
+  "recovered_categories": {
+    "Images": 1,
+    "Documents": 1,
+    "Archives": 1
+  },
+  "files": [
+    {
+      "file_id": "FILE_TEST-CASE-01_0001",
+      "file_name": "FILE_TEST-CASE-01_0001.png",
+      "file_type": "PNG Image",
+      "extension": "png",
+      "category": "Images",
+      "byte_offset_start": 5120,
+      "byte_offset_end": 5187,
+      "size_bytes": 67,
+      "md5": "e44d5234dc5bb917775206bee269227c",
+      "sha256": "bf6e855b67618763d38f0cd8c2ab5ea9aed7b28f4475939f040e4e3ac016bedc",
+      "confidence_score": 100.0,
+      "classification": "INTACT_VERIFIED",
+      "exported_path": "/home/kali/Desktop/Forensic Nexus/recover/test_cases/CASE_TEST-CASE-01/images/FILE_TEST-CASE-01_0001.png"
+    },
+    {
+      "file_id": "FILE_TEST-CASE-01_0002",
+      "file_name": "FILE_TEST-CASE-01_0002.pdf",
+      "file_type": "PDF Document",
+      "extension": "pdf",
+      "category": "Documents",
+      "byte_offset_start": 107587,
+      "byte_offset_end": 107716,
+      "size_bytes": 129,
+      "md5": "4a889a21d20d7805341c3780332da998",
+      "sha256": "3b3acb36a2c38ddfc97ee84f6216c9c009c6dc7f5f776e87cd65cb8c3f326804",
+      "confidence_score": 100.0,
+      "classification": "INTACT_VERIFIED",
+      "exported_path": "/home/kali/Desktop/Forensic Nexus/recover/test_cases/CASE_TEST-CASE-01/documents/FILE_TEST-CASE-01_0002.pdf"
+    },
+    {
+      "file_id": "FILE_TEST-CASE-01_0003",
+      "file_name": "FILE_TEST-CASE-01_0003.zip",
+      "file_type": "ZIP / Office XML",
+      "extension": "zip",
+      "category": "Archives",
+      "byte_offset_start": 158916,
+      "byte_offset_end": 159048,
+      "size_bytes": 132,
+      "md5": "632047ec9d26564ccb76f587d7877d19",
+      "sha256": "2c08ce05cc46e04b591acf73faa8206bbe4afc4e287712395de402a109320f48",
+      "confidence_score": 70.0,
+      "classification": "PARTIALLY_RECOVERED",
+      "exported_path": "/home/kali/Desktop/Forensic Nexus/recover/test_cases/CASE_TEST-CASE-01/archives/FILE_TEST-CASE-01_0003.zip"
+    }
+  ],
+  "audit_hash": "e12833e4dc057dbfd6ad93e043947b3593f992e244f10a2fe94af21408b7a136"
+}

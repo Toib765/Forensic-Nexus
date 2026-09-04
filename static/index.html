@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forensic Nexus | Defense-Grade Forensics & Sanitization</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;0,800;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Authentication Overlay -->
+    <div class="auth-overlay" id="authOverlay">
+        <div class="auth-box">
+            <div class="brand" style="justify-content: center; margin-bottom: 12px;">
+                <div class="brand-icon">&#9878;</div>
+                <div class="brand-title">FORENSIC NEXUS</div>
+            </div>
+            <div class="auth-title">RESTRICTED TERMINAL ACCESS</div>
+            <div class="auth-sub">Enter verified operator credentials to initialize subsystem</div>
+            <div class="auth-error" id="loginError"></div>
+            
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label class="form-label">Operator ID / Username</label>
+                    <input type="text" class="form-control" id="loginUser" autocomplete="username" required placeholder="e.g. toib, shaurya, ujjwal">
+                </div>
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label class="form-label">Security Passkey</label>
+                    <input type="password" class="form-control" id="loginPass" autocomplete="current-password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-green" style="width: 100%; justify-content: center;">Authenticate Terminal &rarr;</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Header Navigation -->
+    <div class="header-bar">
+        <div class="brand">
+            <div class="brand-icon">&#9878;</div>
+            <div>
+                <div class="brand-title">FORENSIC NEXUS <span class="brand-badge">SIH 26149</span></div>
+                <div style="font-size: 10px; color: var(--text-dim); font-weight: 500;">Hardware-Level Forensic Recovery & Cryptographic Sanitization Suite</div>
+            </div>
+        </div>
+        <div class="nav-tabs">
+            <button class="tab-btn active" id="tabRecoveryBtn" onclick="switchTab('recovery')">&#128269; Forensic Recovery</button>
+            <button class="tab-btn" id="tabSanitizeBtn" onclick="switchTab('sanitize')">&#9762; Sanitization Engine</button>
+            <button class="tab-btn" id="tabVaultBtn" onclick="switchTab('vault')">&#128193; Case Vault & Audit</button>
+        </div>
+        <div class="user-profile-badge" id="userProfileDisplay">
+            <!-- Rendered by app.js -->
+        </div>
+    </div>
+
+    <!-- Media Target Detection Shelf -->
+    <div class="shelf">
+        <div class="shelf-header">
+            <span>&#128190; Target Media Discovery</span>
+            <button class="select-btn" onclick="fetchDrives()">&#8635; Rescan Storage</button>
+        </div>
+        <div class="drive-grid" id="driveList">
+            <div class="drive-card">
+                <div>
+                    <div class="drive-name">sda1 (/dev/sda1)</div>
+                    <div class="drive-meta">Physical Partition &bull; 0.12 GB</div>
+                </div>
+                <button class="select-btn" onclick="selectDrive('/dev/sda1')">Select</button>
+            </div>
+            <div class="drive-card">
+                <div>
+                    <div class="drive-name">sda (/dev/sda)</div>
+                    <div class="drive-meta">Physical Storage &bull; 14.84 GB</div>
+                </div>
+                <button class="select-btn" onclick="selectDrive('/dev/sda')">Select</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. WORKSPACE: Forensic Recovery -->
+    <div class="workspace active" id="wsRecovery">
+        <div class="card">
+            <div class="card-header">
+                <span>&#128269; Raw Hardware Stream Carving Configuration</span>
+                <span class="badge badge-verified">&#128274; Strict Read-Only Mode</span>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Target Media Path</label>
+                    <input type="text" class="form-control" id="targetPathCarve" value="/dev/sda1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Case Investigation ID</label>
+                    <input type="text" class="form-control" id="caseIdCarve" value="CASE-2026-LIVE-DEMO">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Carving Mode</label>
+                    <select class="form-control" id="carveMode">
+                        <option value="Deep Raw Stream (Entire Sector Space)">Deep Raw Stream (Entire Sector Space)</option>
+                        <option value="Unallocated Space Only (Fast Seized Media)">Unallocated Space Only (Fast Seized Media)</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-green" id="startCarveBtn" onclick="runCarving()">&#9889; Start Forensic Deep Carving</button>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span>&#9638; Physical Sector Entropy Matrix (Shannon Scale: 0.0 &rarr; 8.0)</span>
+                <div style="display: flex; gap: 16px; font-size: 11px;">
+                    <span style="color: #10b981; font-weight: 600;">&#9632; Zeroed / Sanitized (0.0)</span>
+                    <span style="color: #00e5ff; font-weight: 600;">&#9632; Structured FAT/Plain (0.1 - 4.5)</span>
+                    <span style="color: #ff2a5f; font-weight: 600;">&#9632; Compressed / Media (&gt;7.0)</span>
+                </div>
+            </div>
+            <div class="heatmap-shelf">
+                <div class="heatmap-grid" id="entropyGrid"></div>
+                <div id="blockTooltip" class="mono" style="font-size: 11px; color: var(--text-secondary); margin-top: 10px;">
+                    Hover over a block cell to inspect physical sector offset and entropy classification.
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span>&#128444; Carved Evidence Artifacts &bull; <span id="recoveryCountBadge" style="color: var(--accent-cyan);">0 Recovered</span></span>
+                <span style="font-size: 10px; color: var(--text-dim);">Click artifact card to stream raw sector hex & ASCII decode</span>
+            </div>
+            <div class="gallery-grid" id="evidenceGallery">
+                <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-dim);">
+                    No carved artifacts loaded. Initiate deep carving scan above.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. WORKSPACE: Sanitization Engine -->
+    <div class="workspace" id="wsSanitize">
+        <div class="card" style="border-color: rgba(255, 42, 95, 0.3);">
+            <div class="card-header" style="color: #ff7597;">
+                <span>&#9762; Cryptographic Media Sanitization Engine</span>
+                <span class="badge" style="background: rgba(255, 42, 95, 0.15); border: 1px solid rgba(255, 42, 95, 0.4); color: #ff7597;">&#9888; Irreversible Hardware Overwrite</span>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Target Media / Block Device</label>
+                    <input type="text" class="form-control" id="targetPathSanitize" value="/dev/sda1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Destruction Standard</label>
+                    <select class="form-control" id="sanitizeStandard">
+                        <option value="NIST_CLEAR">NIST SP 800-88 Rev. 1 Clear (1-Pass 0x00)</option>
+                        <option value="RANDOM_1PASS">Deterministic Pseudo-Random (1-Pass Verifiable)</option>
+                        <option value="DOD_3PASS">DoD 5220.22-M (3-Pass Zero/Complement/Random)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Linear Verification Coverage</label>
+                    <select class="form-control" id="verifyCoverage">
+                        <option value="100.0">100% Full Media Linear Read-Back</option>
+                        <option value="20.0">20% Heuristic Block Sampling</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-red" id="startSanitizeBtn" onclick="runSanitization()">&#9762; Execute Media Sanitization</button>
+        </div>
+    </div>
+
+    <!-- 3. WORKSPACE: Case Vault & Audit -->
+    <div class="workspace" id="wsVault">
+        <div class="card">
+            <div class="card-header">
+                <span>&#128196; Immutable Forensic Chain-of-Custody & Sanitization Audit Ledger (SQLite Backed)</span>
+                <button class="select-btn" onclick="loadAuditLedger()">&#8635; Refresh Ledger</button>
+            </div>
+            <table class="audit-table">
+                <thead>
+                    <tr>
+                        <th>JOB / CASE ID</th>
+                        <th>OPERATION</th>
+                        <th>TARGET PATH</th>
+                        <th>PAYLOAD AUDIT HASH (SHA-256)</th>
+                        <th>RESULT STATUS</th>
+                        <th>COMPLIANCE EXPORT</th>
+                    </tr>
+                </thead>
+                <tbody id="ledgerBody">
+                    <!-- Dynamic SQLite Ledger Entries -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Telemetry Log Stream -->
+    <div class="card" style="margin-top: 10px; padding: 14px 20px;">
+        <div class="card-header" style="margin-bottom: 8px; font-size: 11px;">
+            <span>&#128225; Subsystem Telemetry & Verification Stream</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button class="select-btn" id="copyLogBtn" onclick="copyLogs()">&#128203; Copy Log</button>
+                <span class="mono" id="engineStatusBadge" style="color: var(--accent-emerald); font-weight:700;">ENGINE_IDLE</span>
+            </div>
+        </div>
+        <div class="terminal-box" id="logTerminal">[*] System initialized. Standby for authorized session...</div>
+    </div>
+
+    <!-- In-Browser Hex & Byte Inspector Modal -->
+    <div class="modal-overlay" id="hexModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div>
+                    <div style="font-weight:800; color:#ffffff; font-size:13px;" id="modalFileName">CARVED_ARTIFACT.bin</div>
+                    <div style="font-size:10px; color:var(--text-secondary); margin-top:2px;" id="modalFileMeta">Offset: 0x00000000 | Magic Byte Verified</div>
+                </div>
+                <button class="select-btn" onclick="closeHexModal()">&#10005; Close</button>
+            </div>
+            <div class="modal-body" id="hexContainer">
+                <!-- Hex rows rendered dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

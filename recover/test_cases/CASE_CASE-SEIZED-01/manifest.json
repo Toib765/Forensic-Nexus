@@ -1,0 +1,296 @@
+{
+  "job_id": "CASE-SEIZED-01",
+  "target_path": "/home/kali/Desktop/Forensic Nexus/recover/seized_media.raw",
+  "target_size_bytes": 2359765,
+  "scan_start_time": 1788165254.6128848,
+  "scan_end_time": 1788165254.8194563,
+  "live_files_detected": 0,
+  "deleted_files_recovered": 3,
+  "categories": {
+    "Images": 1,
+    "Documents": 2
+  },
+  "entropy_analysis": {
+    "total_blocks_scanned": 37,
+    "zeroed_blocks": 34,
+    "structured_blocks": 3,
+    "compressed_or_encrypted_blocks": 0,
+    "carving_exhaustion_confidence_pct": 91.89,
+    "sample_map": [
+      {
+        "block_index": 1,
+        "byte_offset": 0,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 2,
+        "byte_offset": 65536,
+        "entropy": 0.0112,
+        "classification": "STRUCTURED_UNCOMPRESSED"
+      },
+      {
+        "block_index": 3,
+        "byte_offset": 131072,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 4,
+        "byte_offset": 196608,
+        "entropy": 0.0828,
+        "classification": "STRUCTURED_UNCOMPRESSED"
+      },
+      {
+        "block_index": 5,
+        "byte_offset": 262144,
+        "entropy": 0.0607,
+        "classification": "STRUCTURED_UNCOMPRESSED"
+      },
+      {
+        "block_index": 6,
+        "byte_offset": 327680,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 7,
+        "byte_offset": 393216,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 8,
+        "byte_offset": 458752,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 9,
+        "byte_offset": 524288,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 10,
+        "byte_offset": 589824,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 11,
+        "byte_offset": 655360,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 12,
+        "byte_offset": 720896,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 13,
+        "byte_offset": 786432,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 14,
+        "byte_offset": 851968,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 15,
+        "byte_offset": 917504,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 16,
+        "byte_offset": 983040,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 17,
+        "byte_offset": 1048576,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 18,
+        "byte_offset": 1114112,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 19,
+        "byte_offset": 1179648,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 20,
+        "byte_offset": 1245184,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 21,
+        "byte_offset": 1310720,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 22,
+        "byte_offset": 1376256,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 23,
+        "byte_offset": 1441792,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 24,
+        "byte_offset": 1507328,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 25,
+        "byte_offset": 1572864,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 26,
+        "byte_offset": 1638400,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 27,
+        "byte_offset": 1703936,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 28,
+        "byte_offset": 1769472,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 29,
+        "byte_offset": 1835008,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 30,
+        "byte_offset": 1900544,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 31,
+        "byte_offset": 1966080,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 32,
+        "byte_offset": 2031616,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 33,
+        "byte_offset": 2097152,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 34,
+        "byte_offset": 2162688,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 35,
+        "byte_offset": 2228224,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 36,
+        "byte_offset": 2293760,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      },
+      {
+        "block_index": 37,
+        "byte_offset": 2359296,
+        "entropy": 0.0,
+        "classification": "ZEROED_SANITIZED"
+      }
+    ]
+  },
+  "live_catalog": [],
+  "carved_catalog": [
+    {
+      "file_id": "CARVED_CASE-SEIZED-01_0001",
+      "file_name": "CARVED_CASE-SEIZED-01_0001.png",
+      "file_type": "PNG Image",
+      "extension": "png",
+      "category": "Images",
+      "byte_offset_start": 65536,
+      "byte_offset_end": 65603,
+      "size_bytes": 67,
+      "md5": "e44d5234dc5bb917775206bee269227c",
+      "sha256": "bf6e855b67618763d38f0cd8c2ab5ea9aed7b28f4475939f040e4e3ac016bedc",
+      "confidence_score": 100.0,
+      "classification": "INTACT_VERIFIED",
+      "source_space": "UNALLOCATED_SPACE",
+      "exported_path": "/home/kali/Desktop/Forensic Nexus/recover/test_cases/CASE_CASE-SEIZED-01/carved_evidence/images/CARVED_CASE-SEIZED-01_0001.png"
+    },
+    {
+      "file_id": "CARVED_CASE-SEIZED-01_0002",
+      "file_name": "CARVED_CASE-SEIZED-01_0002.zip",
+      "file_type": "ZIP / Office Container",
+      "extension": "zip",
+      "category": "Documents",
+      "byte_offset_start": 196675,
+      "byte_offset_end": 197003,
+      "size_bytes": 328,
+      "md5": "31ea58b7d7ec40b3ef8391ddcdb550ec",
+      "sha256": "3e04d9ca28e35fbc3d18de14e981c826bdeaf263823f129b2eeca2ae6a66c49a",
+      "confidence_score": 65.0,
+      "classification": "PARTIALLY_RECOVERED",
+      "source_space": "UNALLOCATED_SPACE",
+      "exported_path": "/home/kali/Desktop/Forensic Nexus/recover/test_cases/CASE_CASE-SEIZED-01/carved_evidence/documents/CARVED_CASE-SEIZED-01_0002.zip"
+    },
+    {
+      "file_id": "CARVED_CASE-SEIZED-01_0003",
+      "file_name": "CARVED_CASE-SEIZED-01_0003.zip",
+      "file_type": "ZIP / Office Container",
+      "extension": "zip",
+      "category": "Documents",
+      "byte_offset_start": 196760,
+      "byte_offset_end": 197003,
+      "size_bytes": 243,
+      "md5": "a3404c28fb790b9f49c775196dd363a8",
+      "sha256": "178c94949d030e8b979ff5bf711ab46a8c353288ce3a55be4d96e2b1e568ed58",
+      "confidence_score": 65.0,
+      "classification": "PARTIALLY_RECOVERED",
+      "source_space": "UNALLOCATED_SPACE",
+      "exported_path": "/home/kali/Desktop/Forensic Nexus/recover/test_cases/CASE_CASE-SEIZED-01/carved_evidence/documents/CARVED_CASE-SEIZED-01_0003.zip"
+    }
+  ],
+  "audit_hash": "a7876bb2ac5c08d095a225a396f6d74411428e34cbaa356ab9877bd36205a6b4"
+}

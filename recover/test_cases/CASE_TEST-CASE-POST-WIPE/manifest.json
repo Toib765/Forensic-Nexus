@@ -1,0 +1,11 @@
+{
+  "job_id": "TEST-CASE-POST-WIPE",
+  "target_path": "/home/kali/Desktop/Forensic Nexus/recover/synthetic_drive.raw",
+  "target_size_bytes": 4353370,
+  "scan_start_time": 1788164170.932614,
+  "scan_end_time": 1788164170.9539576,
+  "total_files_recovered": 0,
+  "recovered_categories": {},
+  "files": [],
+  "audit_hash": "26c267af716df414ee0f6c314ec0a40d1154b23429962b0c630944efb2fdece6"
+}
