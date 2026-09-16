@@ -53,7 +53,7 @@ Forensic Nexus/
 ```
 Getting started
 ```bash
-git clone https://github.com/<your-username>/forensic-nexus.git
+git clone https://github.com/Toib765/forensic-nexus.git
 cd forensic-nexus
 
 python3 -m venv venv
