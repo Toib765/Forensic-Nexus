@@ -64,7 +64,7 @@ def init_db():
     # Pre-seed fast testing credentials
     seed_users = [
         ("toib", "1234", "ErasureOperator", "Toib (Erasure Spec.)"),
-        ("shaurya", "4321", "ForensicInvestigator", "Shaurya (Forensic Lead)"),
+        ("chethan", "4321", "ForensicInvestigator", "Chethan (Forensic Lead)"),
         ("ujjwal", "6969", "Admin", "Ujjwal (System Admin)")
     ]
 
