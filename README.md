@@ -71,7 +71,7 @@ Demo login
 Three accounts are pre-seeded on first run (`core/database.py`):
 Username	Password	Role
 `toib`	`1234`	ErasureOperator
-`shaurya`	`4321`	ForensicInvestigator
+`chethan`	`4321`	ForensicInvestigator
 `ujjwal`	`6969`	Admin
 These are placeholder demo credentials — change them (or add real
 registration) before this ever runs anywhere besides your own machine.
