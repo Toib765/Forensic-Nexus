@@ -1,50 +1,28 @@
-# Python virtual environment
+# Byte-compiled / optimized / Pylance cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Databases & local state
+*.db
+*.sqlite3
+forensic_nexus.db
+
+# Virtual environments
 venv/
 .venv/
 env/
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
 
-# Python packaging / build artifacts
-*.egg-info/
-.eggs/
-build/
-dist/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-.coverage.*
-htmlcov/
+# Forensic generated outputs & carved evidence
+cases/
+*.raw
+*.bin
+*.dd
+*.img
+recovered_files/
 
-# Local environment / editor files
+# OS / Editor clutter
 .vscode/
 .idea/
 .DS_Store
-*.swp
-*.swo
-
-# Local runtime data
-forensic_nexus.db
-*.db
-*.sqlite3
-
-# Generated case outputs / evidence artifacts
-cases/*/
-!cases/README.md
-!cases/.gitkeep
-
-# Recovery / carving output folders
-recover/test_cases/**
-!recover/test_cases/README.md
-!recover/test_cases/.gitkeep
-
-# Logs and temp files
 *.log
-*.tmp
-*.bak
-
-# OS files
-Thumbs.db
