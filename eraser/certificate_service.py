@@ -12,6 +12,18 @@ def generate_nist_certificate(job_data: dict) -> bytes:
     operator = job_data.get('operator_username', 'toib')
     timestamp = time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(job_data.get('end_time', time.time())))
 
+    # FIX: the status badge and "Full Media Read-Back" wording used to be
+    # hardcoded regardless of job_data['verified'] — this function never
+    # even read that field. A failed verification would still print a
+    # certificate declaring "VERIFIED SANITIZED". Now genuinely conditional.
+    verified = bool(job_data.get('verified', False))
+    if verified:
+        status_badge_html = '<span class="status-badge">&#10003; VERIFIED SANITIZED</span>'
+        scope_desc = "Full Media Read-Back" if float(v_scope) >= 100.0 else "Sampled Read-Back"
+    else:
+        status_badge_html = '<span class="status-badge status-fail">&#10007; VERIFICATION FAILED</span>'
+        scope_desc = "Read-Back (unconfirmed)"
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -120,6 +132,11 @@ def generate_nist_certificate(job_data: dict) -> bytes:
             border-radius: 4px;
             font-size: 12px;
         }}
+        .status-badge.status-fail {{
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid #ef4444;
+            color: #ef4444;
+        }}
         .footer {{
             display: flex;
             justify-content: space-between;
@@ -176,7 +193,7 @@ def generate_nist_certificate(job_data: dict) -> bytes:
             </div>
             <div class="field-group">
                 <span class="field-label">Verification Status</span>
-                <span class="field-value"><span class="status-badge">&#10003; VERIFIED SANITIZED</span></span>
+                <span class="field-value">{status_badge_html}</span>
             </div>
             <div class="field-group">
                 <span class="field-label">Target Media / Block Device</span>
@@ -192,7 +209,7 @@ def generate_nist_certificate(job_data: dict) -> bytes:
             </div>
             <div class="field-group">
                 <span class="field-label">Linear Verification Scope</span>
-                <span class="field-value">{v_scope}% Full Media Read-Back</span>
+                <span class="field-value">{v_scope}% {scope_desc}</span>
             </div>
             <div class="field-group">
                 <span class="field-label">Authorized Operator</span>

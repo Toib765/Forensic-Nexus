@@ -6,9 +6,17 @@ class DriveScanner:
     def __init__(self):
         self.system_mounts = ["/", "/boot", "/boot/efi", "/var", "/etc", "/usr", "/root"]
 
-    def is_system_disk(self, mountpoints):
-        if not mountpoints: return False
-        return any(m in self.system_mounts for m in mountpoints if m)
+    def is_system_disk(self, mountpoint):
+        # FIX: `for m in mountpoints` iterated a single string character by
+        # character — since "/" is itself in system_mounts, ANY mountpoint
+        # (they all start with "/") matched on that first character alone,
+        # flagging every mounted drive (including safe ones like /home) as
+        # a system disk and silently hiding it from the drive list.
+        if not mountpoint:
+            return False
+        if isinstance(mountpoint, (list, tuple, set)):
+            return any(m in self.system_mounts for m in mountpoint if m)
+        return mountpoint in self.system_mounts
 
     def scan_drives(self):
         try:

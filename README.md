@@ -53,7 +53,7 @@ Forensic Nexus/
 ```
 Getting started
 ```bash
-git clone https://github.com/Toib765/forensic-nexus.git
+git clone https://github.com/<your-username>/forensic-nexus.git
 cd forensic-nexus
 
 python3 -m venv venv
@@ -71,7 +71,7 @@ Demo login
 Three accounts are pre-seeded on first run (`core/database.py`):
 Username	Password	Role
 `toib`	`1234`	ErasureOperator
-`chethan`	`4321`	ForensicInvestigator
+`shaurya`	`4321`	ForensicInvestigator
 `ujjwal`	`6969`	Admin
 These are placeholder demo credentials — change them (or add real
 registration) before this ever runs anywhere besides your own machine.

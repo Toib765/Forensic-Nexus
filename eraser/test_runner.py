@@ -40,10 +40,10 @@ def run_tests():
         target_path="./test_drive.raw",
         method="NIST_CLEAR",
         is_active_evidence=False,
-        verification_coverage=100.0
+        verification_coverage_pct=100.0
     )
-    print(json.dumps(res1, indent=2))
-    assert res1["verified"] is True, "Expected zero-fill read-back verification to pass"
+    print(json.dumps(res1.__dict__, indent=2))
+    assert res1.verified is True, "Expected zero-fill read-back verification to pass"
     if os.path.exists("./test_drive.raw"):
         os.remove("./test_drive.raw")
 
@@ -71,10 +71,10 @@ def run_tests():
         method="DOD_3PASS",
         is_active_evidence=False
     )
-    print(json.dumps(res3, indent=2))
-    assert res3["verified"] is True, "Expected DOD_3PASS folder erasure to verify"
+    print(json.dumps(res3.__dict__, indent=2))
+    assert res3.verified is True, "Expected DOD_3PASS folder erasure to verify"
     assert not os.path.exists("./test_folder"), "Folder should be gone after erasure"
-    assert res3["bytes_processed"] > 0, "Folder byte accounting should reflect actual file contents"
+    assert res3.bytes_processed > 0, "Folder byte accounting should reflect actual file contents"
 
     print("\n=== TEST 4: Protected-Path Symlink Bypass Guardrail ===")
     if os.path.islink("./sneaky_link"):

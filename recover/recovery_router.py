@@ -62,6 +62,22 @@ def execute_carve(req: CarveRequest, user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Deep Carving Failed: {str(e)}")
 
+CASES_ROOT = os.path.abspath("./cases")
+
+
+def _safe_component(value: str, label: str) -> str:
+    """Rejects any path separator or traversal sequence outright instead of
+    trying to sanitize one — case_id/file_name/category never legitimately
+    need a slash in them. Fixes the arbitrary-file-read this endpoint had:
+    these params used to go straight into os.path.join() unchecked, so
+    file_name=../../../etc/passwd (or an absolute path, which os.path.join
+    happily lets override everything before it) could read any file on the
+    server."""
+    if not value or value in (".", "..") or "/" in value or "\\" in value or "\x00" in value:
+        raise HTTPException(status_code=400, detail=f"Invalid {label}.")
+    return value
+
+
 @router.get("/hex-inspect")
 def inspect_hex(
     case_id: str = Query(...),
@@ -70,11 +86,21 @@ def inspect_hex(
     length: int = Query(512),
     user: dict = Depends(get_current_user)
 ):
-    base_case_path = os.path.join("./cases", case_id, "carved_evidence")
-    target_file = os.path.join(base_case_path, category.lower(), file_name)
-    
+    case_id = _safe_component(case_id, "case_id")
+    file_name = _safe_component(file_name, "file_name")
+    category = _safe_component(category, "category")
+
+    base_case_path = os.path.join(CASES_ROOT, case_id, "carved_evidence")
+    target_file = os.path.abspath(os.path.join(base_case_path, category.lower(), file_name))
+
     if not os.path.exists(target_file):
-        target_file = os.path.join(base_case_path, category, file_name)
+        target_file = os.path.abspath(os.path.join(base_case_path, category, file_name))
+
+    # Belt-and-suspenders: even with _safe_component's checks above, confirm
+    # the resolved path is still inside CASES_ROOT before touching disk.
+    if os.path.commonpath([CASES_ROOT, target_file]) != CASES_ROOT:
+        raise HTTPException(status_code=400, detail="Invalid path.")
+
     if not os.path.exists(target_file):
         raise HTTPException(status_code=404, detail=f"Artifact '{file_name}' not found on disk.")
     
