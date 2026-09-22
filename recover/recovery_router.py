@@ -96,8 +96,6 @@ def inspect_hex(
     if not os.path.exists(target_file):
         target_file = os.path.abspath(os.path.join(base_case_path, category, file_name))
 
-    # Belt-and-suspenders: even with _safe_component's checks above, confirm
-    # the resolved path is still inside CASES_ROOT before touching disk.
     if os.path.commonpath([CASES_ROOT, target_file]) != CASES_ROOT:
         raise HTTPException(status_code=400, detail="Invalid path.")
 

@@ -11,9 +11,6 @@ from typing import Dict, Any
 try:
     from recover.atom_carver import AtomCarver
 except ImportError:
-    # Falls back to a bare sibling import when this module is run directly
-    # from inside recover/ (e.g. `python3 test_carver.py`), where the
-    # `recover` package itself isn't on sys.path — only this folder is.
     from atom_carver import AtomCarver
 
 class StreamCarver:
@@ -120,15 +117,6 @@ class StreamCarver:
             i = 0
             idx = 1
             while i < target_bytes - 16:
-                # FIX: this used to step forward in fixed 512-byte increments
-                # on a miss (`i += 512`), checking for a signature ONLY at
-                # exact 512-aligned offsets. Real deleted-file remnants don't
-                # reliably start on sector boundaries once anything
-                # variable-length precedes them, so genuine files were
-                # silently skipped. Replaced with a direct jump to the next
-                # actual signature occurrence via mm.find() — correct
-                # regardless of alignment, and still fast (native search,
-                # not a byte-by-byte Python loop).
                 next_hit = None
                 next_hdr = None
                 for hdr in SIGNATURE_HEADERS:
@@ -138,8 +126,6 @@ class StreamCarver:
                         next_hdr = hdr
                 if next_hit is None:
                     break
-                # "ftyp" is 4 bytes INTO the real box (after the box's own
-                # 4-byte size field) — back up to the true box start.
                 i = next_hit - 4 if next_hdr == b"ftyp" else next_hit
 
                 found, f_size = False, 0
@@ -194,10 +180,6 @@ class StreamCarver:
                     f_type, ext, category, confidence, found = "PCAP Network Capture", "pcap", "Network", 90, True
 
                 elif mm[i+4:i+8] == b"ftyp":
-                    # AtomCarver already existed as a proper MP4 box-chain
-                    # parser but was never called — this replaces a blind
-                    # "found ftyp, assume it's fine" guess with an actual
-                    # walk that confirms a moov/mdat atom follows.
                     with open(target_path, "rb") as mp4_f:
                         ok, atom_len = AtomCarver.parse_mp4_stream(mp4_f, i, max_size=self.max_carve_size)
                     if atom_len > 0:

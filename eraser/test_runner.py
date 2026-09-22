@@ -1,14 +1,3 @@
-"""
-FIX LOG:
-  - Original script just printed results without asserting anything, so a
-    regression to the old "verified=True hardcoded" behavior would have looked
-    identical to a real pass. Every test now asserts on the actual outcome.
-  - Fixture files/folders are created if missing, so the script runs standalone
-    instead of silently failing on a fresh checkout with no ./test_drive.raw.
-  - Added a symlink-bypass test (proves the realpath-based protected-path fix)
-    and an invalid-method test (proves the method validation fix).
-"""
-
 import json
 import os
 import secrets

@@ -12,10 +12,7 @@ def generate_nist_certificate(job_data: dict) -> bytes:
     operator = job_data.get('operator_username', 'toib')
     timestamp = time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(job_data.get('end_time', time.time())))
 
-    # FIX: the status badge and "Full Media Read-Back" wording used to be
-    # hardcoded regardless of job_data['verified'] — this function never
-    # even read that field. A failed verification would still print a
-    # certificate declaring "VERIFIED SANITIZED". Now genuinely conditional.
+   
     verified = bool(job_data.get('verified', False))
     if verified:
         status_badge_html = '<span class="status-badge">&#10003; VERIFIED SANITIZED</span>'

@@ -1,20 +1,3 @@
-"""
-FIX LOG (this pass):
-  1. `verified = True` was hardcoded in all three branches (DIRECTORY,
-     BLOCK_DEVICE, FILE) — os.sync() flushes write buffers, it doesn't
-     confirm what's actually on disk. Every branch now runs a real
-     read-back: a fixed-byte final pass is confirmed by sampling offsets
-     and checking they equal that byte; a random final pass is confirmed
-     by hashing a bounded pre-write sample and checking it differs from
-     the same range post-write.
-  2. The BLOCK_DEVICE branch's silent size fallback (`if size == 0: size =
-     536870912`) meant an unreadable device size caused a blind 512MB
-     guess. Now raises ValueError instead.
-  3. `method` was never validated — an unrecognized string silently fell
-     through to NIST_CLEAR-style behavior. Now validated against
-     SUPPORTED_METHODS up front.
-"""
-
 import os
 import time
 import hashlib
