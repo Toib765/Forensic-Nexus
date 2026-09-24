@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import (
+    APIRouter,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+)
 from pydantic import BaseModel, Field
 
 from core.database import get_session, log_audit_event
@@ -71,7 +77,10 @@ def execute_carve(
     request: CarveRequest,
     user: dict = Depends(get_current_user),
 ):
-    if user.get("role") not in {"Admin", "ForensicInvestigator"}:
+    if user.get("role") not in {
+        "Admin",
+        "ForensicInvestigator",
+    }:
         raise HTTPException(
             status_code=403,
             detail="Insufficient privileges for forensic carving.",
@@ -87,39 +96,44 @@ def execute_carve(
             scan_unallocated_only=request.scan_unallocated_only,
         )
 
-        log_audit_event(
-            {
-                "job_id": result["job_id"],
-                "operation": "CARVE",
-                "target_path": result["target_path"],
-                "target_type": (
-                    "BLOCK_DEVICE"
-                    if request.target_path.startswith("/dev/")
-                    else "FILE"
-                ),
-                "method": "RAW_STREAM_CARVE",
-                "bytes_processed": result["target_size_bytes"],
-                "start_time": result["scan_start_time"],
-                "end_time": result["scan_end_time"],
-                "verified": True,
-                "verification_method": "SHA-256 artifact hashing",
-                "verification_coverage_pct": 100.0,
-                "audit_hash": result["audit_hash"],
-                "status": (
-                    f"COMPLETED ({result['deleted_files_recovered']} recovered)"
-                ),
-                "recovered_count": result["deleted_files_recovered"],
-                "operator_username": user.get("username", "investigator"),
-            }
-        )
+        log_audit_event({
+            "job_id": result["job_id"],
+            "operation": "CARVE",
+            "target_path": result["target_path"],
+            "target_type": (
+                "BLOCK_DEVICE"
+                if request.target_path.startswith("/dev/")
+                else "FILE"
+            ),
+            "method": "RAW_STREAM_CARVE",
+            "bytes_processed": result["target_size_bytes"],
+            "start_time": result["scan_start_time"],
+            "end_time": result["scan_end_time"],
+            "verified": True,
+            "verification_method": "SHA-256 artifact hashing",
+            "verification_coverage_pct": 100.0,
+            "audit_hash": result["audit_hash"],
+            "status": (
+                f"COMPLETED "
+                f"({result['deleted_files_recovered']} recovered)"
+            ),
+            "recovered_count": result["deleted_files_recovered"],
+            "operator_username": user.get(
+                "username",
+                "investigator",
+            ),
+        })
 
         return {
             "status": "success",
             "data": result,
         }
 
-    except HTTPException:
-        raise
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=403,
+            detail=str(exc),
+        ) from exc
 
     except FileNotFoundError as exc:
         raise HTTPException(
@@ -127,10 +141,22 @@ def execute_carve(
             detail=str(exc),
         ) from exc
 
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to read evidence source: {exc!s}",
+        ) from exc
+
     except Exception as exc:
         raise HTTPException(
             status_code=500,
-            detail=f"Deep carving failed: {exc}",
+            detail=f"Deep carving failed: {exc!s}",
         ) from exc
 
 
