@@ -120,15 +120,20 @@ Do not use `sudo python main.py`. `sudo` uses root's system Python instead of th
 
 ## Demo accounts
 
-The current development database seeds placeholder accounts on first initialization:
+Demo users are intended for local development only and are seeded only when enabled.
 
-| Username | Password | Role |
-| --- | --- | --- |
-| `toib` | `1234` | ErasureOperator |
-| `shaurya` | `4321` | ForensicInvestigator |
-| `ujjwal` | `6969` | Admin |
+- `FN_ENABLE_DEMO_USERS=true|false` controls whether seed users are created.
+- Default behavior: enabled only when `FN_ENV` is `development`/`dev`/`local`; disabled otherwise.
+- Session lifetime is controlled by `FN_SESSION_TTL_SECONDS` (default `28800`, 8 hours).
 
-Change these credentials before using the application outside a local demo.
+Optional credential overrides:
+
+- `FN_DEMO_USER_ERASURE_USERNAME` / `FN_DEMO_USER_ERASURE_PASSWORD`
+- `FN_DEMO_USER_FORENSIC_USERNAME` / `FN_DEMO_USER_FORENSIC_PASSWORD`
+- `FN_DEMO_USER_ADMIN_USERNAME` / `FN_DEMO_USER_ADMIN_PASSWORD`
+
+Development defaults (when demo seeding is enabled) are: `toib/1234`, `chethan/4321`, and `ujjwal/6969`.
+Never keep these defaults in shared, hosted, or production deployments.
 
 ## Safe test workflow
 
@@ -176,7 +181,8 @@ rm -rf scratch
 
 If you deliberately test real hardware, verify the model and serial, create a small test partition, and use only that partition. Do not select the whole disk unless you intend to erase the partition table and all contents. Always unmount the partition before recovery or sanitization.
 
-For a FAT32 test partition, use the raw carving mode. The current filesystem-specific extractor is FAT-oriented; exFAT unallocated-space parsing is not fully supported.
+For FAT/FAT32 targets, `scan_unallocated_only=true` now uses FAT allocation metadata to carve only unallocated ranges.
+For non-FAT or unsupported filesystems, unallocated-only requests are rejected explicitly instead of silently falling back.
 
 ## API examples
 
@@ -211,7 +217,7 @@ Carve a forensic image:
 curl -s -X POST http://127.0.0.1:8000/api/v1/recovery/carve \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"job_id":"CASE-001","target_path":"./evidence/seized.img","output_dir":"./cases"}'
+  -d '{"job_id":"CASE-001","target_path":"./evidence/seized.img","output_dir":"./cases","scan_unallocated_only":false}'
 ```
 
 ## CI
@@ -224,7 +230,7 @@ GitHub Actions runs on pushes and pull requests. It installs dependencies, compi
 - Mobile/ADB storage erasure is not implemented.
 - Flash storage recovery is not guaranteed; controllers, TRIM, and garbage collection can remove deleted data.
 - Recovery currently favors contiguous files and does not reconstruct fragmented files.
-- Filesystem-specific unallocated-space support is limited; exFAT is not fully supported by the current FAT extractor.
+- Unallocated-only carving currently supports FAT/FAT32 metadata parsing; unsupported filesystems are rejected in unallocated-only mode.
 - Confidence scoring is stronger for some formats than others.
 - The audit hash is an integrity checksum, not a private-key-backed digital signature.
 - SQLite is suitable for a single-node demo, not concurrent multi-instance deployment.
