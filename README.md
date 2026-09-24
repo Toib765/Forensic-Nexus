@@ -1,139 +1,235 @@
-Forensic Nexus
-An integrated secure data erasure and forensic file recovery platform.
-Built for Smart India Hackathon 2026 — Problem Statement SIH25149,
-posed by the National Technical Research Organisation (NTRO), under the
-Blockchain & Cybersecurity theme.
-> Most tools do one of two things: securely destroy data, or recover deleted
-> data. Investigators end up juggling separate tools for sanitization and
-> forensic recovery. Forensic Nexus puts both in one platform with a shared
-> audit trail, so the same evidence lifecycle — seize, image, analyze,
-> sanitize, certify — can happen in one place.
----
-What it does
-Secure Erasure — wipes block devices, raw disk images, and individual
-files/folders using NIST SP 800-88 Clear (1-pass zero-fill), a 1-pass
-random overwrite, or a 3-pass DoD 5220.22-M-style pattern. Every job is
-verified with a real post-overwrite read-back, not just assumed to have
-worked.
-Forensic Recovery / Carving — scans a raw image or device for
-recoverable files (JPEG, PNG, PDF, DOCX/XLSX/PPTX/ZIP, SQLite, PCAP, MP4)
-without relying on filesystem metadata, and can scope a scan to just the
-unallocated space on a FAT-formatted source.
-Audit ledger & certificates — every erasure job is logged to a
-persistent SQLite ledger and can be exported as a sanitization certificate
-(open the download in a browser, print/save as PDF).
-Role-based access — real session-token auth (salted+hashed passwords,
-server-side sessions) gates who can trigger erasure vs. who can only view
-the audit ledger.
-Web dashboard — a single-page frontend for drive selection, job
-progress, and a hex viewer over recovered artifacts.
-Project structure
+# Forensic Nexus
+
+Forensic Nexus is a Linux-focused platform that combines secure media sanitization, forensic file carving, audit logging, and certificate generation in one web application.
+
+> Built for Smart India Hackathon 2026, Problem Statement SIH25149, under the Blockchain & Cybersecurity theme.
+
+## What it provides
+
+- **Secure erasure** of approved files, folders, raw images, and block-device targets.
+- **Verification** through post-write read-back checks.
+- **Forensic carving** for common contiguous file signatures, including PNG, JPEG, PDF, Office/ZIP, SQLite, PCAP, and MP4.
+- **Drive discovery** with protection for mounted and system devices.
+- **SQLite audit ledger** for sanitization and recovery activity.
+- **Browser certificates** for completed sanitization jobs.
+- **Role-based sessions** for operators, investigators, and administrators.
+- **Web dashboard** for drive selection, recovery, sanitization, ledger review, and artifact inspection.
+
+The certificate wording is intentionally **NIST SP 800-88 Rev. 1 aligned**. This project is not an official NIST certification or validation product.
+
+## Safety warning
+
+This software can permanently destroy data. Use it only on disposable test media or verified forensic copies.
+
+Before touching a block device on Linux:
+
+```bash
+lsblk -o NAME,PATH,SIZE,RM,TYPE,FSTYPE,MOUNTPOINTS,MODEL,SERIAL
 ```
-Forensic Nexus/
-├── main.py                  # App entrypoint — mounts all routers, serves the frontend
+
+Confirm the device by its model and serial number. Never assume that `/dev/sda` or another device name is safe. Do not select a mounted system device. Do not run the server with `sudo`; use the project virtual environment and grant narrowly scoped device permissions only when required.
+
+For recovery, prefer an image copy (`.raw` or `.img`) instead of a live device:
+
+1. Acquire or create the image.
+2. Hash and preserve the original.
+3. Work on a copy.
+4. Store recovered artifacts in a separate case directory.
+
+## Project structure
+
+```text
+Forensic-Nexus/
+├── main.py
 ├── requirements.txt
+├── pyproject.toml
+├── pytest.ini
+├── .github/workflows/ci.yml
 ├── core/
-│   ├── database.py          # SQLite: users, sessions, audit ledger
-│   └── auth\_router.py       # /api/v1/auth — login, session, logout
+│   ├── database.py
+│   └── auth_router.py
 ├── eraser/
-│   ├── eraser\_engine.py     # SecureEraser — the actual overwrite + verification logic
-│   ├── drive\_scanner.py     # Detects attached block devices, flags system disks
-│   ├── certificate\_service.py  # Renders the sanitization certificate
-│   ├── eraser\_router.py     # /api/v1/erasure — execute, drives, ledger, certificate
-│   └── test\_runner.py       # Engine test suite
+│   ├── eraser_engine.py
+│   ├── drive_scanner.py
+│   ├── certificate_service.py
+│   ├── eraser_router.py
+│   └── test_runner.py
 ├── recover/
-│   ├── carver\_engine.py     # StreamCarver — signature-based carving engine
-│   ├── atom\_carver.py       # MP4/ISO-media box-chain parser
-│   ├── entropy\_scanner.py   # Block-level entropy classification
-│   ├── fat\_extractor.py     # FAT32 boot sector / directory / unallocated-space parsing
-│   ├── signatures.py        # Structural validators (PNG/ZIP/PDF/SQLite)
-│   ├── recovery\_router.py   # /api/v1/recovery — carve, hex-inspect
-│   └── test\_carver.py       # Carving engine test suite
-└── static/                  # Frontend (index.html, app.js, style.css)
+│   ├── carver_engine.py
+│   ├── atom_carver.py
+│   ├── entropy_scanner.py
+│   ├── fat_extractor.py
+│   ├── signatures.py
+│   ├── recovery_router.py
+│   ├── test_carver.py
+│   └── real_loop_integration.py
+├── static/
+│   ├── index.html
+│   ├── app.js
+│   └── style.css
+└── tests/
+    └── test_eraser.py
 ```
-Getting started
-```bash
-git clone https://github.com/<your-username>/forensic-nexus.git
-cd forensic-nexus
 
+## Requirements
+
+- Linux host
+- Python 3.11 or newer
+- Python packages from `requirements.txt`
+- `lsblk` for drive discovery
+- Optional filesystem tools such as `mkfs.exfat` for disposable-media testing
+
+## Setup
+
+```bash
+git clone https://github.com/Toib765/Forensic-Nexus.git
+cd Forensic-Nexus
+git checkout feature/improvements
 python3 -m venv venv
-source venv/bin/activate      # Windows: venv\\Scripts\\activate
-
-pip install -r requirements.txt
-
-python3 main.py
+source venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
-The app comes up at `http://127.0.0.1:8000`. Some erasure operations (raw
-block devices) need permissions your user account may not have by default —
-if you hit a permission error there, that's the OS restricting raw device
-access, not a bug.
-Demo login
-Three accounts are pre-seeded on first run (`core/database.py`):
-Username	Password	Role
-`toib`	`1234`	ErasureOperator
-`shaurya`	`4321`	ForensicInvestigator
-`ujjwal`	`6969`	Admin
-These are placeholder demo credentials — change them (or add real
-registration) before this ever runs anywhere besides your own machine.
-Using it
-Everything goes through the API the frontend also uses. A quick end-to-end
-example with `curl`:
-```bash
-# 1. Log in, grab a session token
-TOKEN=$(curl -s -X POST http://127.0.0.1:8000/api/v1/auth/login \\
-  -H "Content-Type: application/json" \\
-  -d '{"username":"toib","password":"1234"}' | python3 -c "import sys,json; print(json.load(sys.stdin)\['data']\['token'])")
 
-# 2. See what drives are detected
-curl -s http://127.0.0.1:8000/api/v1/erasure/drives \\
+For Fish:
+
+```fish
+source venv/bin/activate.fish
+```
+
+## Run the web application
+
+From the repository root, with the virtual environment active:
+
+```bash
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
+
+Development reload mode:
+
+```bash
+python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Open:
+
+- Dashboard: `http://127.0.0.1:8000`
+- FastAPI documentation: `http://127.0.0.1:8000/docs`
+
+Do not use `sudo python main.py`. `sudo` uses root's system Python instead of the virtual environment and can create root-owned files.
+
+## Demo accounts
+
+The current development database seeds placeholder accounts on first initialization:
+
+| Username | Password | Role |
+| --- | --- | --- |
+| `toib` | `1234` | ErasureOperator |
+| `shaurya` | `4321` | ForensicInvestigator |
+| `ujjwal` | `6969` | Admin |
+
+Change these credentials before using the application outside a local demo.
+
+## Safe test workflow
+
+### Synthetic tests
+
+Run the automated suite:
+
+```bash
+python -m compileall core eraser recover main.py
+python -m pytest -q
+python -m ruff check .
+```
+
+Run the synthetic carver demo from the repository root:
+
+```bash
+python -m recover.test_carver
+```
+
+The real-loop integration script is intentionally not collected by pytest. It can require root access, loop devices, filesystem tools, and a disposable device:
+
+```bash
+python recover/real_loop_integration.py
+```
+
+Use it only when you understand the commands it executes.
+
+### Disposable image testing
+
+A small image is safer than a real disk:
+
+```bash
+mkdir -p scratch
+truncate -s 128M scratch/recovery-test.img
+mkfs.vfat -F 32 scratch/recovery-test.img
+```
+
+Mount it with `udisksctl`, add disposable files, delete a test file, unmount it, and point the recovery UI at the image file. Clean up afterward:
+
+```bash
+rm -rf scratch
+```
+
+### Disposable USB testing
+
+If you deliberately test real hardware, verify the model and serial, create a small test partition, and use only that partition. Do not select the whole disk unless you intend to erase the partition table and all contents. Always unmount the partition before recovery or sanitization.
+
+For a FAT32 test partition, use the raw carving mode. The current filesystem-specific extractor is FAT-oriented; exFAT unallocated-space parsing is not fully supported.
+
+## API examples
+
+Start the server first, then log in:
+
+```bash
+TOKEN=$(curl -s -X POST http://127.0.0.1:8000/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"toib","password":"1234"}' \
+  | python -c 'import json,sys; print(json.load(sys.stdin)["data"]["token"])')
+```
+
+List detected devices:
+
+```bash
+curl -s http://127.0.0.1:8000/api/v1/erasure/drives \
   -H "Authorization: Bearer $TOKEN"
-
-# 3. Sanitize a target (a file, folder, or /dev/... device you actually intend to wipe)
-curl -s -X POST http://127.0.0.1:8000/api/v1/erasure/execute \\
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \\
-  -d '{"target\_path": "./scratch/old\_report.docx", "method": "DOD\_3PASS", "verification\_coverage\_pct": 100.0}'
-
-# 4. Carve a raw image for recoverable files
-curl -s -X POST http://127.0.0.1:8000/api/v1/recovery/carve \\
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \\
-  -d '{"job\_id": "CASE-001", "target\_path": "./evidence/seized.img"}'
 ```
-Full interactive docs (every route, request/response shape) are auto-generated
-by FastAPI at `http://127.0.0.1:8000/docs` once the app is running.
-A note on `target\_path`: for recovery, point it at a forensic image
-(`.raw`/`.img`), not a live mounted device — image first, hash the image,
-work off the copy. That's what preserves the original evidence.
-Running the tests
+
+Sanitize a disposable file:
+
 ```bash
-cd eraser \&\& python3 test\_runner.py
-cd ../recover \&\& python3 test\_carver.py
+curl -s -X POST http://127.0.0.1:8000/api/v1/erasure/execute \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"target_path":"./scratch/test.bin","method":"NIST_CLEAR","verification_coverage_pct":100.0}'
 ```
-Both suites build their own synthetic test data and clean up after
-themselves — no real device or fixture files needed.
-Known limitations / Roadmap
-Being upfront about what's not here yet, rather than let it be a surprise:
-Mobile/ADB storage erasure isn't implemented. The engine currently
-handles block devices, raw images, and files/folders on the local
-filesystem only.
-Linux-only. Block-device paths, `lsblk`, and the FAT extractor all
-assume a Linux host. No Windows/macOS device path support yet.
-Recovery confidence scoring is partial. PNG, ZIP/Office, and MP4
-candidates are validated against real structural checks; JPEG/PDF/PCAP
-confidence is currently based on whether a footer was found, not a full
-structural parse. `signatures.py` has more rigorous validators
-(`validate\_pdf\_structure`, etc.) that aren't fully wired into the carving
-loop yet.
-No fragmented-file reconstruction. Carving currently recovers
-contiguous files; a file split across non-adjacent regions of the disk
-isn't reassembled.
-Audit hash is a checksum, not a signature. `audit\_hash` is a SHA-256
-digest over a job's metadata — it detects tampering with that specific
-record, but isn't a cryptographic signature backed by a private key. A
-proper chain-of-custody signing scheme is a natural next step.
-Single-node SQLite for the audit ledger — fine for a demo/single
-deployment, would need a proper database for multi-instance use.
-Contributions and issues welcome — this is very much still evolving.
-License
-Not yet decided — add one before treating this as reusable by others
-(MIT is a reasonable default for a hackathon project if you want it
-permissive).
+
+Carve a forensic image:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/api/v1/recovery/carve \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"job_id":"CASE-001","target_path":"./evidence/seized.img","output_dir":"./cases"}'
+```
+
+## CI
+
+GitHub Actions runs on pushes and pull requests. It installs dependencies, compiles the application, runs Ruff, and runs pytest. The workflow sets the repository root on `PYTHONPATH` so package imports such as `from eraser.eraser_engine import SecureEraser` work consistently in CI and locally.
+
+## Known limitations
+
+- Linux-only device discovery and raw-device workflows.
+- Mobile/ADB storage erasure is not implemented.
+- Flash storage recovery is not guaranteed; controllers, TRIM, and garbage collection can remove deleted data.
+- Recovery currently favors contiguous files and does not reconstruct fragmented files.
+- Filesystem-specific unallocated-space support is limited; exFAT is not fully supported by the current FAT extractor.
+- Confidence scoring is stronger for some formats than others.
+- The audit hash is an integrity checksum, not a private-key-backed digital signature.
+- SQLite is suitable for a single-node demo, not concurrent multi-instance deployment.
+- Demo credentials and local session storage require hardening for production.
+
+## License
+
+See `LICENSE`. Review the project licensing terms before redistributing the software.
