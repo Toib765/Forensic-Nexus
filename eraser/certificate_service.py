@@ -1,24 +1,31 @@
 import time
 
-def generate_nist_certificate(job_data: dict) -> bytes:
-    job_id = job_data.get('job_id', 'N/A')
-    target_path = job_data.get('target_path', 'N/A')
-    target_type = job_data.get('target_type', 'BLOCK_DEVICE')
-    method = job_data.get('method', 'NIST_CLEAR')
-    bytes_proc = f"{job_data.get('bytes_processed', 0):,}"
-    v_method = job_data.get('verification_method', 'Deterministic Read-Back Pass')
-    v_scope = job_data.get('verification_coverage_pct', 100.0)
-    audit_hash = job_data.get('audit_hash', 'N/A')
-    operator = job_data.get('operator_username', 'toib')
-    timestamp = time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(job_data.get('end_time', time.time())))
 
-   
-    verified = bool(job_data.get('verified', False))
+def generate_nist_certificate(job_data: dict) -> bytes:
+    job_id = job_data.get("job_id", "N/A")
+    target_path = job_data.get("target_path", "N/A")
+    target_type = job_data.get("target_type", "BLOCK_DEVICE")
+    method = job_data.get("method", "NIST_CLEAR")
+    bytes_proc = f"{job_data.get('bytes_processed', 0):,}"
+    v_scope = job_data.get("verification_coverage_pct", 100.0)
+    audit_hash = job_data.get("audit_hash", "N/A")
+    operator = job_data.get("operator_username", "toib")
+    timestamp = time.strftime(
+        "%Y-%m-%d %H:%M:%S UTC", time.gmtime(job_data.get("end_time", time.time()))
+    )
+
+    verified = bool(job_data.get("verified", False))
     if verified:
-        status_badge_html = '<span class="status-badge">&#10003; VERIFIED SANITIZED</span>'
-        scope_desc = "Full Media Read-Back" if float(v_scope) >= 100.0 else "Sampled Read-Back"
+        status_badge_html = (
+            '<span class="status-badge">&#10003; VERIFIED SANITIZED</span>'
+        )
+        scope_desc = (
+            "Full Media Read-Back" if float(v_scope) >= 100.0 else "Sampled Read-Back"
+        )
     else:
-        status_badge_html = '<span class="status-badge status-fail">&#10007; VERIFICATION FAILED</span>'
+        status_badge_html = (
+            '<span class="status-badge status-fail">&#10007; VERIFICATION FAILED</span>'
+        )
         scope_desc = "Read-Back (unconfirmed)"
 
     html = f"""<!DOCTYPE html>
@@ -236,4 +243,4 @@ def generate_nist_certificate(job_data: dict) -> bytes:
 </body>
 </html>
 """
-    return html.encode('utf-8')
+    return html.encode("utf-8")

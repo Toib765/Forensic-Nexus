@@ -1,283 +1,655 @@
 let currentUser = null;
 let currentCaseId = "CASE-2026-LIVE-DEMO";
 
-function log(msg) {
-    const term = document.getElementById('logTerminal');
-    term.textContent += "\n" + msg;
-    term.scrollTop = term.scrollHeight;
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 }
+
+
+function log(message) {
+    const terminal = document.getElementById("logTerminal");
+
+    if (!terminal) {
+        return;
+    }
+
+    terminal.textContent += `\n${message}`;
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
 
 function copyLogs() {
-    const text = document.getElementById('logTerminal').textContent;
-    navigator.clipboard.writeText(text).then(() => {
-        const btn = document.getElementById('copyLogBtn');
-        btn.innerHTML = '&#10003; Copied!';
-        setTimeout(() => { btn.innerHTML = '&#128203; Copy Log'; }, 1500);
-    });
-}
+    const terminal = document.getElementById("logTerminal");
+    const button = document.getElementById("copyLogBtn");
 
-function getAuthHeaders() {
-    const token = localStorage.getItem('fn_token');
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
-}
+    if (!terminal) {
+        return;
+    }
 
-async function handleLogin(e) {
-    e.preventDefault();
-    const userInp = document.getElementById('loginUser').value.trim();
-    const passInp = document.getElementById('loginPass').value.trim();
-    const errBox = document.getElementById('loginError');
-
-    errBox.style.display = 'none';
-
-    try {
-        const res = await fetch('/api/v1/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: userInp, password: passInp })
-        });
-        const data = await res.json();
-        if (!res.ok) {
-            errBox.innerText = data.detail || 'Access Denied. Invalid credentials.';
-            errBox.style.display = 'block';
+    navigator.clipboard.writeText(terminal.textContent).then(() => {
+        if (!button) {
             return;
         }
 
-        localStorage.setItem('fn_token', data.data.token);
-        currentUser = data.data;
-        document.getElementById('authOverlay').style.display = 'none';
+        button.textContent = "✓ Copied!";
+
+        setTimeout(() => {
+            button.textContent = "📋 Copy Log";
+        }, 1500);
+    });
+}
+
+
+function getAuthHeaders() {
+    const token = localStorage.getItem("fn_token");
+
+    return {
+        "Content-Type": "application/json",
+        "Authorization": token ? `Bearer ${token}` : ""
+    };
+}
+
+
+function validateTargetPath(value) {
+    const path = String(value || "").trim();
+
+    if (!path) {
+        throw new Error("Target path is required.");
+    }
+
+    if (path.includes("\0")) {
+        throw new Error("Target path contains an invalid character.");
+    }
+
+    return path;
+}
+
+
+async function parseResponse(response) {
+    const contentType = response.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+        return response.json();
+    }
+
+    return {
+        detail: await response.text()
+    };
+}
+
+
+async function handleLogin(event) {
+    event.preventDefault();
+
+    const username = document.getElementById("loginUser").value.trim();
+    const password = document.getElementById("loginPass").value;
+    const errorBox = document.getElementById("loginError");
+
+    errorBox.style.display = "none";
+
+    try {
+        const response = await fetch("/api/v1/auth/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                username,
+                password
+            })
+        });
+
+        const body = await parseResponse(response);
+
+        if (!response.ok) {
+            throw new Error(body.detail || "Invalid login credentials.");
+        }
+
+        localStorage.setItem("fn_token", body.data.token);
+        currentUser = body.data;
+
+        document.getElementById("authOverlay").style.display = "none";
+
         applyRBAC();
         log(`[+] Operator authenticated: ${currentUser.username} (${currentUser.role})`);
-        fetchDrives();
-    } catch (err) {
-        errBox.innerText = 'Authentication server connection error.';
-        errBox.style.display = 'block';
+
+        await fetchDrives();
+    } catch (error) {
+        errorBox.textContent = error.message;
+        errorBox.style.display = "block";
     }
 }
+
 
 async function logout() {
     try {
-        await fetch('/api/v1/auth/logout', { method: 'POST', headers: getAuthHeaders() });
-    } catch (e) {}
-    localStorage.removeItem('fn_token');
+        await fetch("/api/v1/auth/logout", {
+            method: "POST",
+            headers: getAuthHeaders()
+        });
+    } catch (error) {
+        // The local session is still cleared below.
+    }
+
+    localStorage.removeItem("fn_token");
     currentUser = null;
-    location.reload();
+    window.location.reload();
 }
+
 
 async function checkSession() {
-    const token = localStorage.getItem('fn_token');
+    const token = localStorage.getItem("fn_token");
+    const overlay = document.getElementById("authOverlay");
+
     if (!token) {
-        document.getElementById('authOverlay').style.display = 'flex';
+        overlay.style.display = "flex";
         return;
     }
+
     try {
-        const res = await fetch('/api/v1/auth/me', { headers: getAuthHeaders() });
-        const data = await res.json();
-        if (res.ok) {
-            currentUser = data.data;
-            document.getElementById('authOverlay').style.display = 'none';
-            applyRBAC();
-            fetchDrives();
-        } else {
-            localStorage.removeItem('fn_token');
-            document.getElementById('authOverlay').style.display = 'flex';
+        const response = await fetch("/api/v1/auth/me", {
+            headers: getAuthHeaders()
+        });
+
+        const body = await parseResponse(response);
+
+        if (!response.ok) {
+            throw new Error(body.detail || "Session expired.");
         }
-    } catch (err) {
-        document.getElementById('authOverlay').style.display = 'flex';
+
+        currentUser = body.data;
+        overlay.style.display = "none";
+
+        applyRBAC();
+        await fetchDrives();
+    } catch (error) {
+        localStorage.removeItem("fn_token");
+        currentUser = null;
+        overlay.style.display = "flex";
     }
 }
+
 
 function applyRBAC() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        return;
+    }
 
-    document.getElementById('userProfileDisplay').innerHTML = `
-        <span>Operator: <b style="color:var(--accent-emerald);">${currentUser.username}</b> (<font color="#00e5ff">${currentUser.role}</font>)</span>
-        <button class="logout-btn" onclick="logout()">Logout</button>
-    `;
+    const profile = document.getElementById("userProfileDisplay");
 
-    const tabRec = document.getElementById('tabRecoveryBtn');
-    const tabSan = document.getElementById('tabSanitizeBtn');
-    const tabVlt = document.getElementById('tabVaultBtn');
+    profile.replaceChildren();
 
-    if (currentUser.role === 'ErasureOperator') {
-        tabRec.style.display = 'none';
-        tabSan.style.display = 'flex';
-        tabVlt.style.display = 'flex';
-        switchTab('sanitize');
-    } else if (currentUser.role === 'ForensicInvestigator') {
-        tabRec.style.display = 'flex';
-        tabSan.style.display = 'none';
-        tabVlt.style.display = 'flex';
-        switchTab('recovery');
-    } else { // Admin
-        tabRec.style.display = 'flex';
-        tabSan.style.display = 'flex';
-        tabVlt.style.display = 'flex';
-        switchTab('recovery');
+    const operatorText = document.createElement("span");
+    operatorText.textContent =
+        `Operator: ${currentUser.username} (${currentUser.role})`;
+
+    const logoutButton = document.createElement("button");
+    logoutButton.className = "logout-btn";
+    logoutButton.textContent = "Logout";
+    logoutButton.addEventListener("click", logout);
+
+    profile.append(operatorText, logoutButton);
+
+    const recoveryButton = document.getElementById("tabRecoveryBtn");
+    const sanitizeButton = document.getElementById("tabSanitizeBtn");
+    const vaultButton = document.getElementById("tabVaultBtn");
+
+    if (currentUser.role === "ErasureOperator") {
+        recoveryButton.style.display = "none";
+        sanitizeButton.style.display = "flex";
+        vaultButton.style.display = "flex";
+        switchTab("sanitize");
+    } else if (currentUser.role === "ForensicInvestigator") {
+        recoveryButton.style.display = "flex";
+        sanitizeButton.style.display = "none";
+        vaultButton.style.display = "flex";
+        switchTab("recovery");
+    } else {
+        recoveryButton.style.display = "flex";
+        sanitizeButton.style.display = "flex";
+        vaultButton.style.display = "flex";
+        switchTab("recovery");
     }
 }
 
+
 function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active', 'sanitize-active'));
-    document.querySelectorAll('.workspace').forEach(w => w.classList.remove('active'));
-    
-    if (tab === 'recovery') {
-        document.getElementById('tabRecoveryBtn').classList.add('active');
-        document.getElementById('wsRecovery').classList.add('active');
-    } else if (tab === 'sanitize') {
-        document.getElementById('tabSanitizeBtn').classList.add('sanitize-active');
-        document.getElementById('wsSanitize').classList.add('active');
-    } else if (tab === 'vault') {
-        document.getElementById('tabVaultBtn').classList.add('active');
-        document.getElementById('wsVault').classList.add('active');
+    document.querySelectorAll(".tab-btn").forEach((button) => {
+        button.classList.remove("active", "sanitize-active");
+    });
+
+    document.querySelectorAll(".workspace").forEach((workspace) => {
+        workspace.classList.remove("active");
+    });
+
+    if (tab === "recovery") {
+        document.getElementById("tabRecoveryBtn").classList.add("active");
+        document.getElementById("wsRecovery").classList.add("active");
+    }
+
+    if (tab === "sanitize") {
+        document.getElementById("tabSanitizeBtn").classList.add("sanitize-active");
+        document.getElementById("wsSanitize").classList.add("active");
+    }
+
+    if (tab === "vault") {
+        document.getElementById("tabVaultBtn").classList.add("active");
+        document.getElementById("wsVault").classList.add("active");
         loadAuditLedger();
     }
 }
 
-function selectDrive(path) {
-    document.getElementById('targetPathCarve').value = path;
-    document.getElementById('targetPathSanitize').value = path;
+
+function selectDrive(path, safeForErasure = true) {
+    if (!safeForErasure) {
+        log("[!] This device is not safe for erasure.");
+        return;
+    }
+
+    document.getElementById("targetPathCarve").value = path;
+    document.getElementById("targetPathSanitize").value = path;
+
     log(`[*] Target media assigned to: ${path}`);
 }
 
+
 async function fetchDrives() {
-    log("[*] Querying kernel block storage controller...");
+    log("[*] Querying storage devices...");
+
     try {
-        const res = await fetch('/api/v1/erasure/drives', { headers: getAuthHeaders() });
-        const data = await res.json();
-        if (data.drives) {
-            const grid = document.getElementById('driveList');
-            grid.innerHTML = '';
-            data.drives.forEach(d => {
-                grid.innerHTML += `
-                    <div class="drive-card">
-                        <div>
-                            <div class="drive-name">${d.name} (${d.path})</div>
-                            <div class="drive-meta">${d.type} &bull; ${d.size_gb} GB</div>
-                        </div>
-                        <button class="select-btn" onclick="selectDrive('${d.path}')">Select</button>
-                    </div>
-                `;
-            });
-            log(`[+] Detected ${data.drives.length} active block storage node(s).`);
+        const response = await fetch(
+            "/api/v1/erasure/drives",
+            {
+                headers: getAuthHeaders()
+            }
+        );
+
+        const body = await parseResponse(response);
+
+        if (!response.ok) {
+            throw new Error(body.detail || "Drive scan failed.");
         }
-    } catch (err) {
-        log(`[-] Error scanning drives: ${err}`);
+
+        const drives = body.drives || [];
+        const grid = document.getElementById("driveList");
+
+        grid.replaceChildren();
+
+        if (drives.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "drive-card";
+            empty.textContent = "No block devices detected.";
+            grid.appendChild(empty);
+            return;
+        }
+
+        for (const drive of drives) {
+            const card = document.createElement("div");
+            card.className = "drive-card";
+
+            const details = document.createElement("div");
+
+            const name = document.createElement("div");
+            name.className = "drive-name";
+            name.textContent = `${drive.name || "Unknown"} (${drive.path || "N/A"})`;
+
+            const metadata = document.createElement("div");
+            metadata.className = "drive-meta";
+            metadata.textContent =
+                `${drive.type || "DEVICE"} • ` +
+                `${drive.size || "unknown size"}`;
+
+            details.append(name, metadata);
+
+            if (drive.unsafe_reason) {
+                const warning = document.createElement("div");
+                warning.className = "drive-meta";
+                warning.style.color = "#ff7597";
+                warning.textContent = `Unavailable: ${drive.unsafe_reason}`;
+                details.appendChild(warning);
+            }
+
+            const selectButton = document.createElement("button");
+            selectButton.className = "select-btn";
+            selectButton.textContent = drive.safe_for_erasure
+                ? "Select"
+                : "Unsafe";
+
+            selectButton.disabled = !drive.safe_for_erasure;
+
+            selectButton.addEventListener("click", () => {
+                selectDrive(
+                    drive.path,
+                    drive.safe_for_erasure
+                );
+            });
+
+            card.append(details, selectButton);
+            grid.appendChild(card);
+        }
+
+        log(`[+] Detected ${drives.length} storage device(s).`);
+    } catch (error) {
+        log(`[-] Error scanning drives: ${error.message}`);
     }
 }
+
+
+async function downloadCertificate(jobId) {
+    try {
+        const response = await fetch(
+            `/api/v1/erasure/certificate/${encodeURIComponent(jobId)}`,
+            {
+                headers: getAuthHeaders()
+            }
+        );
+
+        if (!response.ok) {
+            const body = await parseResponse(response);
+            throw new Error(body.detail || "Certificate request failed.");
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+
+        window.open(url, "_blank");
+
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 60_000);
+    } catch (error) {
+        log(`[-] Certificate download failed: ${error.message}`);
+    }
+}
+
 
 async function loadAuditLedger() {
     try {
-        const res = await fetch('/api/v1/erasure/ledger', { headers: getAuthHeaders() });
-        const resp = await res.json();
-        if (resp.data) {
-            const tbody = document.getElementById('ledgerBody');
-            tbody.innerHTML = '';
-            resp.data.forEach(item => {
-                const isSanitize = item.operation === "SANITIZATION";
-                const badgeClass = isSanitize ? 'style="background:rgba(255, 42, 95, 0.15); border:1px solid rgba(255, 42, 95, 0.4); color:#ff7597;"' : 'class="badge badge-verified"';
-                const certCol = isSanitize 
-                    ? `<a href="/api/v1/erasure/certificate/${item.job_id}" target="_blank" style="background:#0284c7; color:#fff; padding:4px 8px; border-radius:4px; text-decoration:none; font-size:10px; font-weight:700;">&#128196; NIST Certificate</a>`
-                    : `<span class="mono" style="font-size: 10px; color:#00e5ff;">&#128274; READ-ONLY CARVE</span>`;
+        const response = await fetch(
+            "/api/v1/erasure/ledger",
+            {
+                headers: getAuthHeaders()
+            }
+        );
 
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="mono"><b>${item.job_id}</b></td>
-                        <td><span ${badgeClass}>${item.operation}</span></td>
-                        <td class="mono">${item.target_path}</td>
-                        <td class="mono" style="font-size: 9px;">${item.audit_hash}</td>
-                        <td style="color:${isSanitize ? '#ff7597' : '#34d399'}; font-weight:600;">${item.status}</td>
-                        <td>${certCol}</td>
-                    </tr>
-                `;
-            });
+        const body = await parseResponse(response);
+
+        if (!response.ok) {
+            throw new Error(body.detail || "Unable to load audit ledger.");
         }
-    } catch (err) {
-        log(`[-] Failed to load database ledger: ${err}`);
+
+        const ledger = body.data || [];
+        const tableBody = document.getElementById("ledgerBody");
+
+        tableBody.replaceChildren();
+
+        for (const item of ledger) {
+            const row = document.createElement("tr");
+
+            const jobCell = document.createElement("td");
+            jobCell.className = "mono";
+            jobCell.textContent = item.job_id || "N/A";
+
+            const operationCell = document.createElement("td");
+            operationCell.textContent = item.operation || "N/A";
+
+            const targetCell = document.createElement("td");
+            targetCell.className = "mono";
+            targetCell.textContent = item.target_path || "N/A";
+
+            const hashCell = document.createElement("td");
+            hashCell.className = "mono";
+            hashCell.textContent = item.audit_hash || "N/A";
+
+            const statusCell = document.createElement("td");
+            statusCell.textContent = item.status || "N/A";
+
+            const actionCell = document.createElement("td");
+
+            if (item.operation === "SANITIZATION") {
+                const certificateButton = document.createElement("button");
+                certificateButton.className = "select-btn";
+                certificateButton.textContent = "Certificate";
+
+                certificateButton.addEventListener("click", () => {
+                    downloadCertificate(item.job_id);
+                });
+
+                actionCell.appendChild(certificateButton);
+            } else {
+                actionCell.textContent = "READ-ONLY CARVE";
+            }
+
+            row.append(
+                jobCell,
+                operationCell,
+                targetCell,
+                hashCell,
+                statusCell,
+                actionCell
+            );
+
+            tableBody.appendChild(row);
+        }
+    } catch (error) {
+        log(`[-] Failed to load audit ledger: ${error.message}`);
     }
 }
+
 
 function renderEntropyHeatmap(sampleMap) {
-    const grid = document.getElementById('entropyGrid');
-    const tooltip = document.getElementById('blockTooltip');
-    if (!grid || !sampleMap) return;
-    grid.innerHTML = '';
+    const grid = document.getElementById("entropyGrid");
+    const tooltip = document.getElementById("blockTooltip");
 
-    sampleMap.forEach(block => {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        if (block.entropy === 0 || block.classification === "ZEROED_SANITIZED") {
-            cell.classList.add('cell-zero');
+    if (!grid || !sampleMap) {
+        return;
+    }
+
+    grid.replaceChildren();
+
+    for (const block of sampleMap) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+
+        if (
+            block.entropy === 0 ||
+            block.classification === "ZEROED_SANITIZED"
+        ) {
+            cell.classList.add("cell-zero");
         } else if (block.entropy < 4.5) {
-            cell.classList.add('cell-struct');
+            cell.classList.add("cell-struct");
         } else {
-            cell.classList.add('cell-high');
+            cell.classList.add("cell-high");
         }
-        cell.onmouseenter = () => {
-            tooltip.innerHTML = `<b>Block #${block.block_index}</b> | Offset: 0x${block.byte_offset.toString(16).toUpperCase()} (${block.byte_offset.toLocaleString()} B) | Entropy: <font color="#00e5ff">${block.entropy.toFixed(4)}</font> [${block.classification}]`;
-        };
-        grid.appendChild(cell);
-    });
-}
 
-async function inspectHex(fileName, category, sha256) {
-    const modal = document.getElementById('hexModal');
-    const title = document.getElementById('modalFileName');
-    const meta = document.getElementById('modalFileMeta');
-    const container = document.getElementById('hexContainer');
-
-    title.innerText = fileName;
-    meta.innerHTML = `Category: <b>${category}</b> | SHA-256: <code>${sha256}</code>`;
-    container.innerHTML = '<div style="color:var(--text-dim); padding:30px; text-align:center;">Streaming raw sectors into hex matrix...</div>';
-    modal.classList.add('active');
-
-    try {
-        const res = await fetch(`/api/v1/recovery/hex-inspect?case_id=${currentCaseId}&file_name=${fileName}&category=${category}&length=512`, {
-            headers: getAuthHeaders()
+        cell.addEventListener("mouseenter", () => {
+            tooltip.textContent =
+                `Block #${block.block_index} | ` +
+                `Offset: ${block.byte_offset} | ` +
+                `Entropy: ${block.entropy} | ` +
+                `${block.classification}`;
         });
-        const data = await res.json();
-        
-        if (data.hex_lines && data.hex_lines.length > 0) {
-            container.innerHTML = '';
-            data.hex_lines.forEach((line, idx) => {
-                const isHeader = (idx === 0);
-                const hexFormatted = isHeader 
-                    ? `<span class="hex-magic">${line.hex.substring(0, 11)}</span>${line.hex.substring(11)}`
-                    : line.hex;
 
-                container.innerHTML += `
-                    <div class="hex-row">
-                        <span class="hex-offset">${line.offset}</span>
-                        <span class="hex-bytes">${hexFormatted}</span>
-                        <span class="hex-ascii">${line.ascii}</span>
-                    </div>
-                `;
-            });
-        } else {
-            container.innerHTML = '<div style="color:#ff2a5f;">Unable to render hex slice.</div>';
-        }
-    } catch (err) {
-        container.innerHTML = `<div style="color:#ff2a5f;">Error: ${err}</div>`;
+        grid.appendChild(cell);
     }
 }
 
-function closeHexModal() {
-    document.getElementById('hexModal').classList.remove('active');
+
+async function inspectHex(fileName, category, sha256) {
+    const modal = document.getElementById("hexModal");
+    const title = document.getElementById("modalFileName");
+    const metadata = document.getElementById("modalFileMeta");
+    const container = document.getElementById("hexContainer");
+
+    title.textContent = fileName;
+    metadata.textContent = `Category: ${category} | SHA-256: ${sha256}`;
+    container.textContent = "Loading hex data...";
+    modal.classList.add("active");
+
+    const query = new URLSearchParams({
+        case_id: currentCaseId,
+        file_name: fileName,
+        category,
+        length: "512"
+    });
+
+    try {
+        const response = await fetch(
+            `/api/v1/recovery/hex-inspect?${query.toString()}`,
+            {
+                headers: getAuthHeaders()
+            }
+        );
+
+        const body = await parseResponse(response);
+
+        if (!response.ok) {
+            throw new Error(body.detail || "Hex inspection failed.");
+        }
+
+        container.replaceChildren();
+
+        for (const line of body.hex_lines || []) {
+            const row = document.createElement("div");
+            row.className = "hex-row";
+
+            const offset = document.createElement("span");
+            offset.className = "hex-offset";
+            offset.textContent = line.offset;
+
+            const bytes = document.createElement("span");
+            bytes.className = "hex-bytes";
+            bytes.textContent = line.hex;
+
+            const ascii = document.createElement("span");
+            ascii.className = "hex-ascii";
+            ascii.textContent = line.ascii;
+
+            row.append(offset, bytes, ascii);
+            container.appendChild(row);
+        }
+    } catch (error) {
+        container.textContent = `Error: ${error.message}`;
+    }
 }
 
-async function runCarving() {
-    const path = document.getElementById('targetPathCarve').value;
-    const caseId = document.getElementById('caseIdCarve').value;
-    const mode = document.getElementById('carveMode').value;
-    const btn = document.getElementById('startCarveBtn');
-    currentCaseId = caseId;
 
-    btn.disabled = true;
-    btn.innerHTML = '&#9203; Carving Sectors...';
-    document.getElementById('engineStatusBadge').innerText = 'CARVING_IN_PROGRESS';
-    log(`[*] Ingesting raw block sectors from ${path} (Strict Read-Only)...`);
+function closeHexModal() {
+    document.getElementById("hexModal").classList.remove("active");
+}
+
+
+function renderCarvingResult(result) {
+    const gallery = document.getElementById("evidenceGallery");
+    const badge = document.getElementById("recoveryCountBadge");
+
+    gallery.replaceChildren();
+
+    const count = result.deleted_files_recovered || 0;
+    badge.textContent = `${count} Recovered`;
+
+    if (result.entropy_analysis?.sample_map) {
+        renderEntropyHeatmap(result.entropy_analysis.sample_map);
+    }
+
+    if (!result.carved_catalog || result.carved_catalog.length === 0) {
+        const empty = document.createElement("div");
+        empty.style.gridColumn = "1 / -1";
+        empty.textContent = "No recoverable deleted files found.";
+        gallery.appendChild(empty);
+        return;
+    }
+
+    for (const item of result.carved_catalog) {
+        const card = document.createElement("div");
+        card.className = "evidence-card";
+
+        const thumbnail = document.createElement("div");
+        thumbnail.className = "evidence-thumb";
+
+        if (item.category === "Images") {
+            const image = document.createElement("img");
+            image.src =
+                `/cases/${encodeURIComponent(result.job_id)}` +
+                `/carved_evidence/images/` +
+                `${encodeURIComponent(item.file_name)}`;
+            image.alt = "Recovered evidence";
+            thumbnail.appendChild(image);
+        } else {
+            thumbnail.textContent = "📄";
+        }
+
+        const metadata = document.createElement("div");
+        metadata.className = "evidence-meta";
+
+        const title = document.createElement("div");
+        title.className = "evidence-title";
+        title.textContent = item.file_name;
+
+        const type = document.createElement("div");
+        type.textContent =
+            `${item.file_type} • ` +
+            `${((item.size_bytes || 0) / 1024).toFixed(1)} KB`;
+
+        const confidence = document.createElement("span");
+        confidence.className =
+            item.confidence_score >= 90
+                ? "badge badge-verified"
+                : "badge badge-partial";
+
+        confidence.textContent =
+            `${item.classification} (${item.confidence_score}%)`;
+
+        metadata.append(title, type, confidence);
+        card.append(thumbnail, metadata);
+
+        card.addEventListener("click", () => {
+            inspectHex(
+                item.file_name,
+                item.category,
+                item.sha256
+            );
+        });
+
+        gallery.appendChild(card);
+    }
+}
+
+
+async function runCarving() {
+    const pathInput = document.getElementById("targetPathCarve");
+    const caseInput = document.getElementById("caseIdCarve");
+    const mode = document.getElementById("carveMode").value;
+    const button = document.getElementById("startCarveBtn");
+
+    let path;
+    let caseId;
+
+    try {
+        path = validateTargetPath(pathInput.value);
+        caseId = caseInput.value.trim();
+
+        if (!caseId) {
+            throw new Error("Case ID is required.");
+        }
+    } catch (error) {
+        log(`[-] ${error.message}`);
+        return;
+    }
+
+    currentCaseId = caseId;
+    button.disabled = true;
+    button.textContent = "Carving...";
+
+    document.getElementById(
+        "engineStatusBadge"
+    ).textContent = "CARVING_IN_PROGRESS";
 
     const payload = {
         job_id: caseId,
@@ -287,127 +659,151 @@ async function runCarving() {
     };
 
     try {
-        const res = await fetch('/api/v1/recovery/carve', {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify(payload)
-        });
-        
-        const responseJson = await res.json();
-        
-        if (!res.ok) {
-            log(`[-] Server Error [${res.status}]: ${JSON.stringify(responseJson)}`);
-            return;
+        const response = await fetch(
+            "/api/v1/recovery/carve",
+            {
+                method: "POST",
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload)
+            }
+        );
+
+        const body = await parseResponse(response);
+
+        if (!response.ok) {
+            throw new Error(body.detail || "Recovery request failed.");
         }
 
-        const result = responseJson.data ? responseJson.data : responseJson;
-        const bytesTotal = result.target_size_bytes || 134217728;
-        const recCount = result.deleted_files_recovered !== undefined ? result.deleted_files_recovered : (result.carved_catalog ? result.carved_catalog.length : 0);
-        const auditHash = result.audit_hash || "N/A";
+        const result = body.data;
+        currentCaseId = result.job_id;
 
-        log(`[+] Deep carving complete! Processed ${bytesTotal.toLocaleString()} bytes.`);
-        log(`[+] Carved ${recCount} deleted file(s) with SHA-256 seal: ${auditHash}`);
-        document.getElementById('recoveryCountBadge').innerText = `${recCount} Recovered`;
+        log(
+            `[+] Carving complete. ` +
+            `${result.deleted_files_recovered || 0} file(s) recovered.`
+        );
 
-        if (result.entropy_analysis && result.entropy_analysis.sample_map) {
-            renderEntropyHeatmap(result.entropy_analysis.sample_map);
-        }
-
-        const gallery = document.getElementById('evidenceGallery');
-        gallery.innerHTML = '';
-        if (result.carved_catalog && result.carved_catalog.length > 0) {
-            result.carved_catalog.forEach(item => {
-                const isImg = item.category === "Images";
-                let icon = "&#128196;";
-                if (item.category === "Databases") icon = "&#128452;";
-                else if (item.category === "Network") icon = "&#127760;";
-                else if (item.category === "Media") icon = "&#127916;";
-
-                const thumbContent = isImg 
-                    ? `<img src="/cases/${result.job_id}/carved_evidence/images/${item.file_name}" alt="Evidence" onerror="this.src=''"/>` 
-                    : `<div class="doc-icon">${icon}</div>`;
-                
-                gallery.innerHTML += `
-                    <div class="evidence-card" onclick="inspectHex('${item.file_name}', '${item.category}', '${item.sha256}')">
-                        <div class="evidence-thumb">${thumbContent}</div>
-                        <div class="evidence-meta">
-                            <div class="evidence-title">${item.file_name}</div>
-                            <div style="color:var(--text-dim); margin-top:2px;">${item.file_type} &bull; ${((item.size_bytes||0)/1024).toFixed(1)} KB</div>
-                            <span class="badge ${item.confidence_score >= 90 ? 'badge-verified' : 'badge-partial'}">
-                                ${item.classification} (${item.confidence_score}%)
-                            </span>
-                        </div>
-                    </div>
-                `;
-            });
-        } else {
-            gallery.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-dim);">No recoverable deleted files found (Drive Sanitized).</div>';
-        }
-
-    } catch (err) {
-        log(`[-] Carving failed: ${err}`);
+        renderCarvingResult(result);
+    } catch (error) {
+        log(`[-] Carving failed: ${error.message}`);
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '&#9889; Start Forensic Deep Carving';
-        document.getElementById('engineStatusBadge').innerText = 'ENGINE_IDLE';
+        button.disabled = false;
+        button.textContent = "⚡ Start Forensic Deep Carving";
+
+        document.getElementById(
+            "engineStatusBadge"
+        ).textContent = "ENGINE_IDLE";
     }
 }
 
-async function runSanitization() {
-    const path = document.getElementById('targetPathSanitize').value;
-    const method = document.getElementById('sanitizeStandard').value;
-    const coverage = parseFloat(document.getElementById('verifyCoverage').value);
-    const btn = document.getElementById('startSanitizeBtn');
 
-    if (!confirm(`CRITICAL WARNING:\n\nAre you sure you want to sanitize ${path} using ${method}?\nAll physical sectors will be permanently overwritten.`)) {
+async function runSanitization() {
+    const button = document.getElementById("startSanitizeBtn");
+
+    let path;
+
+    try {
+        path = validateTargetPath(
+            document.getElementById("targetPathSanitize").value
+        );
+    } catch (error) {
+        log(`[-] ${error.message}`);
         return;
     }
 
-    btn.disabled = true;
-    btn.innerHTML = '&#9203; Sanitizing Blocks...';
-    document.getElementById('engineStatusBadge').innerText = 'OVERWRITE_IN_PROGRESS';
-    log(`[!] Initiating destructive raw sector overwrite on ${path} (${method})...`);
+    const method = document.getElementById("sanitizeStandard").value;
+    const coverage = Number(
+        document.getElementById("verifyCoverage").value
+    );
+
+    const confirmed = window.confirm(
+        `WARNING:\n\n` +
+        `You are about to permanently overwrite:\n${path}\n\n` +
+        `Method: ${method}\n` +
+        `Verification coverage: ${coverage}%\n\n` +
+        `Continue?`
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Sanitizing...";
+
+    document.getElementById(
+        "engineStatusBadge"
+    ).textContent = "OVERWRITE_IN_PROGRESS";
 
     try {
-        const res = await fetch('/api/v1/erasure/execute', {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ target_path: path, method: method, verification_coverage_pct: coverage })
-        });
-        const responseJson = await res.json();
-        
-        if (responseJson.status === "success") {
-            const data = responseJson.data ? responseJson.data : responseJson;
-            
-            if (data.verified === true) {
-                const bytesCount = data.bytes_processed || 0;
-                log(`[+] Sanitization Successful! Job: ${data.job_id}`);
-                log(`[+] Processed: ${bytesCount.toLocaleString()} bytes (${data.verification_coverage_pct}% Verified).`);
-                log(`[+] Cryptographic Audit Seal: ${data.audit_hash}`);
-                alert(`Sanitization Verified: ${data.job_id}\n\nBlocks overwritten and verified.`);
-            } else {
-                log(`[-] VERIFICATION FAILED. Sectors unreadable for ${data.job_id}`);
-                alert(`WARNING: Verification failed for ${data.job_id}`);
+        const response = await fetch(
+            "/api/v1/erasure/execute",
+            {
+                method: "POST",
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    target_path: path,
+                    method,
+                    verification_coverage_pct: coverage
+                })
             }
-        } else {
-            log(`[-] Sanitization error: ${JSON.stringify(responseJson)}`);
+        );
+
+        const body = await parseResponse(response);
+
+        if (!response.ok) {
+            throw new Error(body.detail || "Sanitization request failed.");
         }
-    } catch (err) {
-        log(`[-] Execution failed: ${err}`);
+
+        const data = body.data;
+
+        if (data.verified === true) {
+            log(
+                `[+] Sanitization verified. ` +
+                `Job: ${data.job_id}`
+            );
+            log(
+                `[+] Verified coverage: ` +
+                `${data.verification_coverage_pct}%`
+            );
+
+            window.alert(
+                `Sanitization verified.\n\nJob: ${data.job_id}`
+            );
+        } else {
+            log(
+                `[-] Sanitization failed: ` +
+                `${data.status || "verification failed"}`
+            );
+
+            window.alert(
+                "Sanitization verification failed. " +
+                "The target was not deleted automatically."
+            );
+        }
+    } catch (error) {
+        log(`[-] Sanitization failed: ${error.message}`);
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '&#9762; Execute Media Sanitization';
-        document.getElementById('engineStatusBadge').innerText = 'ENGINE_IDLE';
+        button.disabled = false;
+        button.textContent = "☠ Execute Media Sanitization";
+
+        document.getElementById(
+            "engineStatusBadge"
+        ).textContent = "ENGINE_IDLE";
     }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-    const emptyMap = Array.from({ length: 64 }, (_, i) => ({
-        block_index: i + 1,
-        byte_offset: i * 65536,
-        entropy: 0,
-        classification: "ZEROED_SANITIZED"
-    }));
+
+window.addEventListener("DOMContentLoaded", () => {
+    const emptyMap = Array.from(
+        { length: 64 },
+        (_, index) => ({
+            block_index: index + 1,
+            byte_offset: index * 65536,
+            entropy: 0,
+            classification: "ZEROED_SANITIZED"
+        })
+    );
+
     renderEntropyHeatmap(emptyMap);
     checkSession();
 });

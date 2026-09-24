@@ -1,29 +1,31 @@
 import io
 import zipfile
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
+
 
 @dataclass
 class SignatureDef:
     file_type: str
     extension: str
-    headers: List[bytes]
-    footer: Optional[bytes]
+    headers: list[bytes]
+    footer: bytes | None
     max_size: int
     category: str
     requires_container_parser: bool = False
+
 
 def validate_png_structure(data: bytes) -> bool:
     if len(data) < 8 or data[:8] != b"\x89PNG\r\n\x1a\n":
         return False
     offset = 8
     while offset + 8 <= len(data):
-        chunk_len = int.from_bytes(data[offset:offset+4], byteorder="big")
-        chunk_type = data[offset+4:offset+8]
+        chunk_len = int.from_bytes(data[offset : offset + 4], byteorder="big")
+        chunk_type = data[offset + 4 : offset + 8]
         offset += 8 + chunk_len + 4
         if chunk_type == b"IEND":
             return True
     return False
+
 
 def validate_zip_structure(data: bytes) -> tuple[bool, str]:
     try:
@@ -40,8 +42,10 @@ def validate_zip_structure(data: bytes) -> tuple[bool, str]:
     except Exception:
         return False, "zip"
 
+
 def validate_pdf_structure(data: bytes) -> bool:
     return data.startswith(b"%PDF-") and b"%%EOF" in data
+
 
 def validate_sqlite_structure(data: bytes) -> tuple[bool, int]:
     if len(data) < 100 or not data.startswith(b"SQLite format 3\x00"):
@@ -50,17 +54,25 @@ def validate_sqlite_structure(data: bytes) -> tuple[bool, int]:
     if page_size == 1:
         page_size = 65536
     page_count = int.from_bytes(data[28:32], byteorder="big")
-    total_size = page_size * page_count if (page_size > 0 and page_count > 0) else len(data)
+    total_size = (
+        page_size * page_count if (page_size > 0 and page_count > 0) else len(data)
+    )
     return True, total_size
 
-SIGNATURE_DATABASE: List[SignatureDef] = [
+
+SIGNATURE_DATABASE: list[SignatureDef] = [
     SignatureDef(
         file_type="JPEG Image",
         extension="jpg",
-        headers=[b"\xff\xd8\xff\xe0", b"\xff\xd8\xff\xe1", b"\xff\xd8\xff\xee", b"\xff\xd8\xff\xdb"],
+        headers=[
+            b"\xff\xd8\xff\xe0",
+            b"\xff\xd8\xff\xe1",
+            b"\xff\xd8\xff\xee",
+            b"\xff\xd8\xff\xdb",
+        ],
         footer=b"\xff\xd9",
         max_size=30 * 1024 * 1024,
-        category="Images"
+        category="Images",
     ),
     SignatureDef(
         file_type="PNG Image",
@@ -68,7 +80,7 @@ SIGNATURE_DATABASE: List[SignatureDef] = [
         headers=[b"\x89PNG\r\n\x1a\n"],
         footer=b"\x49\x45\x4e\x44\xae\x42\x60\x82",
         max_size=30 * 1024 * 1024,
-        category="Images"
+        category="Images",
     ),
     SignatureDef(
         file_type="PDF Document",
@@ -76,7 +88,7 @@ SIGNATURE_DATABASE: List[SignatureDef] = [
         headers=[b"%PDF-"],
         footer=b"%%EOF",
         max_size=100 * 1024 * 1024,
-        category="Documents"
+        category="Documents",
     ),
     SignatureDef(
         file_type="ZIP / Office Container",
@@ -84,7 +96,7 @@ SIGNATURE_DATABASE: List[SignatureDef] = [
         headers=[b"PK\x03\x04"],
         footer=b"PK\x05\x06",
         max_size=250 * 1024 * 1024,
-        category="Documents"
+        category="Documents",
     ),
     SignatureDef(
         file_type="MP4 / ISO Media Video",
@@ -93,7 +105,7 @@ SIGNATURE_DATABASE: List[SignatureDef] = [
         footer=None,
         max_size=500 * 1024 * 1024,
         category="Videos",
-        requires_container_parser=True
+        requires_container_parser=True,
     ),
     SignatureDef(
         file_type="SQLite Database",
@@ -102,6 +114,6 @@ SIGNATURE_DATABASE: List[SignatureDef] = [
         footer=None,
         max_size=500 * 1024 * 1024,
         category="Databases",
-        requires_container_parser=True
-    )
+        requires_container_parser=True,
+    ),
 ]
