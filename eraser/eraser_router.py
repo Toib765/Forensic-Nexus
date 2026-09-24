@@ -1,6 +1,6 @@
 from dataclasses import asdict
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
@@ -10,6 +10,7 @@ from core.database import (
     list_audit_ledger,
     log_audit_event,
 )
+from core.job_manager import job_store
 from eraser.certificate_service import generate_nist_certificate
 from eraser.drive_scanner import DriveScanner
 from eraser.eraser_engine import SecureEraser
@@ -46,6 +47,7 @@ class ErasureRequest(BaseModel):
         gt=0.0,
         le=100.0,
     )
+    async_job: bool = False
 
 
 @router.get("/drives")
@@ -58,12 +60,33 @@ def get_available_drives(
     }
 
 
+def _run_erasure_job(job_id: str, request: ErasureRequest, username: str):
+    job_store.mark_running(job_id)
+    try:
+        result = eraser.sanitize_target(
+            target_path=request.target_path,
+            method=request.method,
+            verification_coverage_pct=(request.verification_coverage_pct),
+        )
+
+        data = asdict(result)
+        data["operation"] = "SANITIZATION"
+        data["operator_username"] = username
+        data["status"] = "SANITIZED" if result.verified else "PARTIAL_FAILURE"
+
+        log_audit_event(data)
+        job_store.mark_success(job_id, data)
+    except Exception as exc:  # noqa: BLE001
+        job_store.mark_failed(job_id, str(exc))
+
+
 @router.post("/execute")
 @router.post("/execute/")
 @router.post("/sanitize")
 @router.post("/sanitize/")
 def execute_erasure(
     request: ErasureRequest,
+    background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user),
 ):
     if user.get("role") not in {"Admin", "ErasureOperator"}:
@@ -71,6 +94,24 @@ def execute_erasure(
             status_code=403,
             detail="Insufficient privileges for media destruction.",
         )
+
+    if request.async_job:
+        async_job = job_store.create(
+            operation="SANITIZATION",
+            requested_by=user.get("username", "operator"),
+            context={
+                "target_path": request.target_path,
+                "method": request.method,
+                "verification_coverage_pct": request.verification_coverage_pct,
+            },
+        )
+        background_tasks.add_task(
+            _run_erasure_job,
+            async_job["job_id"],
+            request,
+            user.get("username", "operator"),
+        )
+        return {"status": "accepted", "data": async_job}
 
     try:
         result = eraser.sanitize_target(
@@ -114,6 +155,18 @@ def execute_erasure(
             status_code=500,
             detail=str(exc),
         ) from exc
+
+
+@router.get("/jobs/{job_id}")
+def get_job_status(job_id: str, user: dict = Depends(get_current_user)):
+    if user.get("role") not in {"Admin", "ErasureOperator"}:
+        raise HTTPException(status_code=403, detail="Insufficient privileges.")
+
+    status = job_store.get(job_id)
+    if not status or status.get("operation") != "SANITIZATION":
+        raise HTTPException(status_code=404, detail="Job not found.")
+
+    return {"status": "success", "data": status}
 
 
 @router.get("/ledger")

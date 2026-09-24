@@ -47,7 +47,7 @@ function copyLogs() {
 
 
 function getAuthHeaders() {
-    const token = localStorage.getItem("fn_token");
+    const token = getAuthToken();
 
     return {
         "Content-Type": "application/json",
@@ -111,7 +111,7 @@ async function handleLogin(event) {
             throw new Error(body.detail || "Invalid login credentials.");
         }
 
-        localStorage.setItem("fn_token", body.data.token);
+        setAuthToken(body.data.token);
         currentUser = body.data;
 
         document.getElementById("authOverlay").style.display = "none";
@@ -137,14 +137,14 @@ async function logout() {
         // The local session is still cleared below.
     }
 
-    localStorage.removeItem("fn_token");
+    clearAuthToken();
     currentUser = null;
     window.location.reload();
 }
 
 
 async function checkSession() {
-    const token = localStorage.getItem("fn_token");
+    const token = getAuthToken();
     const overlay = document.getElementById("authOverlay");
 
     if (!token) {
@@ -169,11 +169,24 @@ async function checkSession() {
         applyRBAC();
         await fetchDrives();
     } catch (error) {
-        localStorage.removeItem("fn_token");
+        clearAuthToken();
         currentUser = null;
         overlay.style.display = "flex";
     }
 }
+
+function handleSessionExpired() {
+    clearAuthToken();
+    currentUser = null;
+
+    const overlay = document.getElementById("authOverlay");
+    if (overlay) {
+        overlay.style.display = "flex";
+    }
+
+    log("[!] Session expired. Please authenticate again.");
+}
+
 
 
 function applyRBAC() {
@@ -272,6 +285,11 @@ async function fetchDrives() {
 
         const body = await parseResponse(response);
 
+        if (response.status === 401) {
+            handleSessionExpired();
+            return;
+        }
+
         if (!response.ok) {
             throw new Error(body.detail || "Drive scan failed.");
         }
@@ -350,6 +368,11 @@ async function downloadCertificate(jobId) {
             }
         );
 
+        if (response.status === 401) {
+            handleSessionExpired();
+            return;
+        }
+
         if (!response.ok) {
             const body = await parseResponse(response);
             throw new Error(body.detail || "Certificate request failed.");
@@ -379,6 +402,11 @@ async function loadAuditLedger() {
         );
 
         const body = await parseResponse(response);
+
+        if (response.status === 401) {
+            handleSessionExpired();
+            return;
+        }
 
         if (!response.ok) {
             throw new Error(body.detail || "Unable to load audit ledger.");
@@ -508,6 +536,11 @@ async function inspectHex(fileName, category, sha256) {
         );
 
         const body = await parseResponse(response);
+
+        if (response.status === 401) {
+            handleSessionExpired();
+            throw new Error("Session expired.");
+        }
 
         if (!response.ok) {
             throw new Error(body.detail || "Hex inspection failed.");
@@ -655,7 +688,7 @@ async function runCarving() {
         job_id: caseId,
         target_path: path,
         output_dir: "./cases",
-        scan_unallocated_only: mode.includes("Unallocated")
+        scan_unallocated_only: mode === "unallocated_only"
     };
 
     try {
@@ -669,6 +702,11 @@ async function runCarving() {
         );
 
         const body = await parseResponse(response);
+
+        if (response.status === 401) {
+            handleSessionExpired();
+            throw new Error("Session expired.");
+        }
 
         if (!response.ok) {
             throw new Error(body.detail || "Recovery request failed.");
@@ -749,6 +787,11 @@ async function runSanitization() {
         );
 
         const body = await parseResponse(response);
+
+        if (response.status === 401) {
+            handleSessionExpired();
+            throw new Error("Session expired.");
+        }
 
         if (!response.ok) {
             throw new Error(body.detail || "Sanitization request failed.");

@@ -69,10 +69,7 @@ class FatExtractor:
             - unallocated_ranges: List of (start_byte, end_byte) corresponding to unallocated space.
         """
         if not self.is_fat and not self.parse_boot_sector():
-            # If target lacks valid FAT headers, treat entire byte-space as unallocated
-            import os
-
-            return [], [(0, os.path.getsize(self.target_path))]
+            return [], []
 
         cluster_size = self.bytes_per_sec * self.sec_per_clus
         allocated_clusters = set()
@@ -155,6 +152,4 @@ class FatExtractor:
             return live_files, unallocated_ranges
 
         except Exception:
-            import os
-
-            return [], [(0, os.path.getsize(self.target_path))]
+            return live_files, []

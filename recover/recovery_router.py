@@ -1,15 +1,10 @@
 from pathlib import Path
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    Header,
-    HTTPException,
-    Query,
-)
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from core.database import get_session, log_audit_event
+from core.job_manager import job_store
 from recover.carver_engine import StreamCarver
 
 router = APIRouter()
@@ -41,6 +36,7 @@ class CarveRequest(BaseModel):
     target_path: str = Field(min_length=1, max_length=4096)
     output_dir: str = Field(default="./cases", max_length=4096)
     scan_unallocated_only: bool = False
+    async_job: bool = False
 
 
 def safe_output_dir(value: str) -> Path:
@@ -72,9 +68,49 @@ def safe_component(value: str, label: str) -> str:
     return value
 
 
+def _log_recovery_audit(request: CarveRequest, result: dict, username: str):
+    log_audit_event(
+        {
+            "job_id": result["job_id"],
+            "operation": "CARVE",
+            "target_path": result["target_path"],
+            "target_type": (
+                "BLOCK_DEVICE" if request.target_path.startswith("/dev/") else "FILE"
+            ),
+            "method": "RAW_STREAM_CARVE",
+            "bytes_processed": result["target_size_bytes"],
+            "start_time": result["scan_start_time"],
+            "end_time": result["scan_end_time"],
+            "verified": True,
+            "verification_method": "SHA-256 artifact hashing",
+            "verification_coverage_pct": 100.0,
+            "audit_hash": result["audit_hash"],
+            "status": f"COMPLETED ({result['deleted_files_recovered']} recovered)",
+            "recovered_count": result["deleted_files_recovered"],
+            "operator_username": username,
+        }
+    )
+
+
+def _run_carve_job(job_id: str, request: CarveRequest, output_dir: str, username: str):
+    job_store.mark_running(job_id)
+    try:
+        result = carver.carve_target(
+            job_id=request.job_id,
+            target_path=request.target_path,
+            output_base_dir=output_dir,
+            scan_unallocated_only=request.scan_unallocated_only,
+        )
+        _log_recovery_audit(request, result, username)
+        job_store.mark_success(job_id, result)
+    except Exception as exc:  # noqa: BLE001
+        job_store.mark_failed(job_id, str(exc))
+
+
 @router.post("/carve")
 def execute_carve(
     request: CarveRequest,
+    background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user),
 ):
     if user.get("role") not in {
@@ -86,43 +122,35 @@ def execute_carve(
             detail="Insufficient privileges for forensic carving.",
         )
 
-    try:
-        output_dir = safe_output_dir(request.output_dir)
+    output_dir = str(safe_output_dir(request.output_dir))
 
+    if request.async_job:
+        async_job = job_store.create(
+            operation="CARVE",
+            requested_by=user.get("username", "investigator"),
+            context={
+                "target_path": request.target_path,
+                "scan_unallocated_only": request.scan_unallocated_only,
+            },
+        )
+        background_tasks.add_task(
+            _run_carve_job,
+            async_job["job_id"],
+            request,
+            output_dir,
+            user.get("username", "investigator"),
+        )
+        return {"status": "accepted", "data": async_job}
+
+    try:
         result = carver.carve_target(
             job_id=request.job_id,
             target_path=request.target_path,
-            output_base_dir=str(output_dir),
+            output_base_dir=output_dir,
             scan_unallocated_only=request.scan_unallocated_only,
         )
 
-        log_audit_event({
-            "job_id": result["job_id"],
-            "operation": "CARVE",
-            "target_path": result["target_path"],
-            "target_type": (
-                "BLOCK_DEVICE"
-                if request.target_path.startswith("/dev/")
-                else "FILE"
-            ),
-            "method": "RAW_STREAM_CARVE",
-            "bytes_processed": result["target_size_bytes"],
-            "start_time": result["scan_start_time"],
-            "end_time": result["scan_end_time"],
-            "verified": True,
-            "verification_method": "SHA-256 artifact hashing",
-            "verification_coverage_pct": 100.0,
-            "audit_hash": result["audit_hash"],
-            "status": (
-                f"COMPLETED "
-                f"({result['deleted_files_recovered']} recovered)"
-            ),
-            "recovered_count": result["deleted_files_recovered"],
-            "operator_username": user.get(
-                "username",
-                "investigator",
-            ),
-        })
+        _log_recovery_audit(request, result, user.get("username", "investigator"))
 
         return {
             "status": "success",
@@ -158,6 +186,18 @@ def execute_carve(
             status_code=500,
             detail=f"Deep carving failed: {exc!s}",
         ) from exc
+
+
+@router.get("/carve/jobs/{job_id}")
+def get_carve_job_status(job_id: str, user: dict = Depends(get_current_user)):
+    if user.get("role") not in {"Admin", "ForensicInvestigator"}:
+        raise HTTPException(status_code=403, detail="Insufficient privileges.")
+
+    status = job_store.get(job_id)
+    if not status or status.get("operation") != "CARVE":
+        raise HTTPException(status_code=404, detail="Job not found.")
+
+    return {"status": "success", "data": status}
 
 
 @router.get("/hex-inspect")
