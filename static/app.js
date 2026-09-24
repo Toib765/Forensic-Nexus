@@ -2,6 +2,21 @@ let currentUser = null;
 let currentCaseId = "CASE-2026-LIVE-DEMO";
 
 
+function getAuthToken() {
+    return sessionStorage.getItem("fn_token");
+}
+
+
+function setAuthToken(token) {
+    sessionStorage.setItem("fn_token", token);
+}
+
+
+function clearAuthToken() {
+    sessionStorage.removeItem("fn_token");
+}
+
+
 function escapeHtml(value) {
     return String(value)
         .replaceAll("&", "&amp;")
