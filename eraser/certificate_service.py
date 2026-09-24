@@ -187,7 +187,7 @@ def generate_nist_certificate(job_data: dict) -> bytes:
         <div class="header">
             <div class="badge">NIST SP 800-88 Rev. 1 Aligned</div>
             <h1>Certificate of Media Sanitization</h1>
-            <p class="subtitle">NForensic Nexus Sanitization Record</p>
+            <p class="subtitle">Forensic Nexus Sanitization Record</p>
         </div>
 
         <div class="grid">
