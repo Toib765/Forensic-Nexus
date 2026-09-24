@@ -48,3 +48,10 @@ recover/test_cases/**
 
 # OS files
 Thumbs.db
+# Local test workspace and carved artifacts
+scratch/
+CARVED_*
+seized_media.raw
+test_drive*.raw
+test_folder/
+sneaky_link
