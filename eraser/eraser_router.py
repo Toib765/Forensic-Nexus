@@ -76,7 +76,7 @@ def _run_erasure_job(job_id: str, request: ErasureRequest, username: str):
 
         log_audit_event(data)
         job_store.mark_success(job_id, data)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         job_store.mark_failed(job_id, str(exc))
 
 

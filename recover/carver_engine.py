@@ -224,7 +224,6 @@ class StreamCarver:
     def _carve_at_offset(
         self,
         stream,
-        target_path: str,
         offset: int,
         target_bytes: int,
         range_end: int,
@@ -329,12 +328,13 @@ class StreamCarver:
 
         elif len(artifact) >= 8 and artifact[4:8] == b"ftyp":
             max_size = min(self.max_carve_size, range_end - offset)
-            with open(target_path, "rb") as mp4_stream:
-                ok, atom_len = AtomCarver.parse_mp4_stream(
-                    mp4_stream,
-                    offset,
-                    max_size=max_size,
-                )
+            current_pos = stream.tell()
+            ok, atom_len = AtomCarver.parse_mp4_stream(
+                stream,
+                offset,
+                max_size=max_size,
+            )
+            stream.seek(current_pos)
 
             if atom_len > 0:
                 capped = min(atom_len, len(artifact))
@@ -365,7 +365,8 @@ class StreamCarver:
             else f"CASE-{int(start_time)}-{uuid.uuid4().hex[:6].upper()}"
         )
 
-        case_dir = os.path.join(output_base_dir, active_job_id, "carved_evidence")
+        normalized_output_base = os.path.realpath(output_base_dir)
+        case_dir = os.path.join(normalized_output_base, active_job_id, "carved_evidence")
         dirs = {
             "Images": os.path.join(case_dir, "images"),
             "Documents": os.path.join(case_dir, "documents"),
@@ -376,17 +377,21 @@ class StreamCarver:
         for d in dirs.values():
             os.makedirs(d, exist_ok=True)
 
-        if not os.path.exists(target_path):
+        normalized_target_path = os.path.realpath(target_path)
+        if target_path.startswith("/dev/"):
+            if not normalized_target_path.startswith("/dev/"):
+                raise PermissionError("Target path must resolve to a block device under /dev.")
+        elif not os.path.exists(normalized_target_path):
             raise FileNotFoundError(f"Target media '{target_path}' not found.")
 
         carved_catalog: list[dict[str, Any]] = []
         sample_map: list[dict[str, Any]] = []
         zeroed_blocks, structured_blocks, high_blocks = 0, 0, 0
 
-        with open(target_path, "rb", buffering=0) as stream:
-            target_bytes = self._get_target_size(stream.fileno(), target_path)
+        with open(normalized_target_path, "rb", buffering=0) as stream:
+            target_bytes = self._get_target_size(stream.fileno(), normalized_target_path)
             scan_mode, scan_ranges, scan_ranges_manifest = self._resolve_scan_ranges(
-                target_path,
+                normalized_target_path,
                 target_bytes,
                 scan_unallocated_only,
             )
@@ -429,7 +434,6 @@ class StreamCarver:
                 _, range_end = containing
                 carved = self._carve_at_offset(
                     stream,
-                    target_path,
                     hit_offset,
                     target_bytes,
                     range_end,
@@ -441,7 +445,9 @@ class StreamCarver:
 
                 file_type, extension, category, confidence, artifact_bytes = carved
                 file_name = f"CARVED_{active_job_id}_{idx:04d}.{extension}"
-                dest_path = os.path.join(dirs[category], file_name)
+                dest_path = os.path.realpath(os.path.join(dirs[category], file_name))
+                if not dest_path.startswith(os.path.realpath(case_dir) + os.sep):
+                    raise PermissionError("Refusing to write outside of case output directory.")
 
                 with open(dest_path, "wb") as out_f:
                     out_f.write(artifact_bytes)

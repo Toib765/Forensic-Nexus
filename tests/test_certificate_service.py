@@ -20,5 +20,5 @@ def test_certificate_escapes_user_controlled_fields():
     assert "<img src=x" not in doc
     assert "<svg onload" not in doc
     assert "<iframe" not in doc
-    assert "&lt;script&gt;alert&quot; not in doc
+    assert "&lt;script&gt;alert" in doc
     assert "&lt;img src=x onerror=alert(&quot;target&quot;)&gt;" in doc

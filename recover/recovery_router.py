@@ -103,7 +103,7 @@ def _run_carve_job(job_id: str, request: CarveRequest, output_dir: str, username
         )
         _log_recovery_audit(request, result, username)
         job_store.mark_success(job_id, result)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         job_store.mark_failed(job_id, str(exc))
 
 
