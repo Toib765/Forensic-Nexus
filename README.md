@@ -2,8 +2,6 @@
 
 Forensic Nexus is a Linux-focused platform that combines secure media sanitization, forensic file carving, audit logging, and certificate generation in one web application.
 
-> Built for Smart India Hackathon 2026, Problem Statement SIH25149, under the Blockchain & Cybersecurity theme.
-
 ## What it provides
 
 - **Secure erasure** of approved files, folders, raw images, and block-device targets.
