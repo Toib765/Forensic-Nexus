@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+extend-exclude = [
+    "recover/real_loop_integration.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "RUF", "PLW"]
+ignore = [
+    "B008",
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"eraser/test_runner.py" = ["E402"]
+"recover/test_carver.py" = ["E402"]
+"test_carver.py" = ["E402"]
+"recover/carver_router.py" = ["B008", "B904"]
+"recover/fat_extractor.py" = ["BLE001"]
+"recover/signatures.py" = ["BLE001"]

@@ -6,8 +6,8 @@ import time
 # Link sibling eraser module
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "eraser")))
 
-from carver_engine import ForensicCarver
-from eraser_engine import SecureEraser
+from recover.carver_engine import ForensicCarver
+from eraser.eraser_engine import SecureEraser
 
 TARGET = "/dev/loop10"
 MOUNT_DIR = "/mnt/evidence_usb"

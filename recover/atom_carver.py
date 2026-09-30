@@ -1,11 +1,23 @@
 import io
-from typing import Optional, Tuple
+from typing import ClassVar
+
 
 class AtomCarver:
-    KNOWN_ATOMS = {b"ftyp", b"moov", b"mdat", b"free", b"skip", b"wide", b"uuid", b"meta"}
+    KNOWN_ATOMS: ClassVar[set[bytes]] = {
+        b"ftyp",
+        b"moov",
+        b"mdat",
+        b"free",
+        b"skip",
+        b"wide",
+        b"uuid",
+        b"meta",
+    }
 
     @classmethod
-    def parse_mp4_stream(cls, stream: io.BufferedReader, start_offset: int, max_size: int) -> Tuple[bool, int]:
+    def parse_mp4_stream(
+        cls, stream: io.BufferedReader, start_offset: int, max_size: int
+    ) -> tuple[bool, int]:
         stream.seek(start_offset)
         total_length = 0
         has_ftyp = False
@@ -50,7 +62,12 @@ class AtomCarver:
             if seek_jump > 0:
                 stream.seek(seek_jump, io.SEEK_CUR)
 
-            if has_ftyp and has_mdat_or_moov and atom_type in [b"moov", b"mdat"] and total_length > 16:
+            if (
+                has_ftyp
+                and has_mdat_or_moov
+                and atom_type in [b"moov", b"mdat"]
+                and total_length > 16
+            ):
                 peek_next = stream.read(8)
                 if len(peek_next) < 8 or peek_next[4:8] not in cls.KNOWN_ATOMS:
                     return True, total_length

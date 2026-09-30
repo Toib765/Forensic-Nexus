@@ -1,13 +1,14 @@
 import os
+
 import uvicorn
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-from core.database import init_db
 from core.auth_router import router as auth_router
-from recover.recovery_router import router as recovery_router
+from core.database import init_db
 from eraser.eraser_router import router as erasure_router
+from recover.recovery_router import router as recovery_router
 
 init_db()
 
@@ -29,17 +30,21 @@ os.makedirs(static_path, exist_ok=True)
 
 app.mount("/cases", StaticFiles(directory=cases_path), name="cases")
 
+
 @app.get("/")
 def read_root():
     return FileResponse(os.path.join(static_path, "index.html"))
+
 
 @app.get("/style.css")
 def read_css():
     return FileResponse(os.path.join(static_path, "style.css"))
 
+
 @app.get("/app.js")
 def read_js():
     return FileResponse(os.path.join(static_path, "app.js"))
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)

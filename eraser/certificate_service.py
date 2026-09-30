@@ -1,18 +1,46 @@
+import html
 import time
 
-def generate_nist_certificate(job_data: dict) -> bytes:
-    job_id = job_data.get('job_id', 'N/A')
-    target_path = job_data.get('target_path', 'N/A')
-    target_type = job_data.get('target_type', 'BLOCK_DEVICE')
-    method = job_data.get('method', 'NIST_CLEAR')
-    bytes_proc = f"{job_data.get('bytes_processed', 0):,}"
-    v_method = job_data.get('verification_method', 'Deterministic Read-Back Pass')
-    v_scope = job_data.get('verification_coverage_pct', 100.0)
-    audit_hash = job_data.get('audit_hash', 'N/A')
-    operator = job_data.get('operator_username', 'toib')
-    timestamp = time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(job_data.get('end_time', time.time())))
 
-    html = f"""<!DOCTYPE html>
+def generate_nist_certificate(job_data: dict) -> bytes:
+    job_id_raw = job_data.get("job_id", "N/A")
+    target_path_raw = job_data.get("target_path", "N/A")
+    target_type_raw = job_data.get("target_type", "BLOCK_DEVICE")
+    method_raw = job_data.get("method", "NIST_CLEAR")
+    bytes_proc = f"{job_data.get('bytes_processed', 0):,}"
+    v_scope = float(job_data.get("verification_coverage_pct", 100.0))
+    audit_hash_raw = job_data.get("audit_hash", "N/A")
+    operator_raw = job_data.get("operator_username", "toib")
+    timestamp_raw = time.strftime(
+        "%Y-%m-%d %H:%M:%S UTC", time.gmtime(job_data.get("end_time", time.time()))
+    )
+
+    job_id = html.escape(str(job_id_raw), quote=True)
+    target_path = html.escape(str(target_path_raw), quote=True)
+    target_type = html.escape(str(target_type_raw), quote=True)
+    method = html.escape(str(method_raw), quote=True)
+    audit_hash = html.escape(str(audit_hash_raw), quote=True)
+    operator = html.escape(str(operator_raw), quote=True)
+    timestamp = html.escape(str(timestamp_raw), quote=True)
+    v_scope_text = html.escape(f"{v_scope}", quote=True)
+
+    verified = bool(job_data.get("verified", False))
+    if verified:
+        status_badge_html = (
+            '<span class="status-badge">&#10003; VERIFIED SANITIZED</span>'
+        )
+        scope_desc = (
+            "Full Media Read-Back" if float(v_scope) >= 100.0 else "Sampled Read-Back"
+        )
+    else:
+        status_badge_html = (
+            '<span class="status-badge status-fail">&#10007; VERIFICATION FAILED</span>'
+        )
+        scope_desc = "Read-Back (unconfirmed)"
+
+    scope_desc = html.escape(scope_desc, quote=True)
+
+    html_doc = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -120,6 +148,11 @@ def generate_nist_certificate(job_data: dict) -> bytes:
             border-radius: 4px;
             font-size: 12px;
         }}
+        .status-badge.status-fail {{
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid #ef4444;
+            color: #ef4444;
+        }}
         .footer {{
             display: flex;
             justify-content: space-between;
@@ -164,9 +197,9 @@ def generate_nist_certificate(job_data: dict) -> bytes:
     <div class="cert-card">
         <button class="print-btn" onclick="window.print()">&#128438; Print / Save PDF</button>
         <div class="header">
-            <div class="badge">NIST SP 800-88 Rev. 1 Validated</div>
+            <div class="badge">NIST SP 800-88 Rev. 1 Aligned</div>
             <h1>Certificate of Media Sanitization</h1>
-            <p class="subtitle">National Forensic Chain-of-Custody & Cryptographic Destruction Verification</p>
+            <p class="subtitle">Forensic Nexus Sanitization Record</p>
         </div>
 
         <div class="grid">
@@ -176,7 +209,7 @@ def generate_nist_certificate(job_data: dict) -> bytes:
             </div>
             <div class="field-group">
                 <span class="field-label">Verification Status</span>
-                <span class="field-value"><span class="status-badge">&#10003; VERIFIED SANITIZED</span></span>
+                <span class="field-value">{status_badge_html}</span>
             </div>
             <div class="field-group">
                 <span class="field-label">Target Media / Block Device</span>
@@ -192,7 +225,7 @@ def generate_nist_certificate(job_data: dict) -> bytes:
             </div>
             <div class="field-group">
                 <span class="field-label">Linear Verification Scope</span>
-                <span class="field-value">{v_scope}% Full Media Read-Back</span>
+                <span class="field-value">{v_scope_text}% {scope_desc}</span>
             </div>
             <div class="field-group">
                 <span class="field-label">Authorized Operator</span>
@@ -222,4 +255,4 @@ def generate_nist_certificate(job_data: dict) -> bytes:
 </body>
 </html>
 """
-    return html.encode('utf-8')
+    return html_doc.encode("utf-8")
