@@ -9,6 +9,32 @@ from eraser.eraser_engine import ErasureResult
 from recover import recovery_router
 
 
+def test_device_erasure_rejects_unsafe_drive(tmp_path, monkeypatch):
+    headers = _auth_headers(tmp_path, monkeypatch)
+    client = TestClient(main.app)
+
+    monkeypatch.setattr(
+        eraser_router.scanner,
+        "scan_drives",
+        lambda: [
+            {
+                "path": "/dev/sda",
+                "safe_for_erasure": False,
+                "unsafe_reason": "currently mounted",
+            }
+        ],
+    )
+
+    response = client.post(
+        "/api/v1/erasure/execute",
+        json={"target_path": "/dev/sda", "method": "NIST_CLEAR"},
+        headers=headers,
+    )
+
+    assert response.status_code == 403
+    assert "currently mounted" in response.json()["detail"]
+
+
 def _auth_headers(tmp_path, monkeypatch):
     db_path = tmp_path / "api.db"
     monkeypatch.setattr(database, "DB_PATH", str(db_path))

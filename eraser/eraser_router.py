@@ -1,3 +1,4 @@
+import os
 from dataclasses import asdict
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
@@ -60,6 +61,30 @@ def get_available_drives(
     }
 
 
+def _validate_device_target(target_path: str) -> None:
+    if not os.path.abspath(target_path).startswith("/dev/"):
+        return
+
+    resolved_target = os.path.realpath(target_path)
+    matching_drive = next(
+        (
+            drive
+            for drive in scanner.scan_drives()
+            if os.path.realpath(drive.get("path") or "") == resolved_target
+        ),
+        None,
+    )
+
+    if not matching_drive:
+        raise PermissionError(
+            "The requested device was not detected. Refusing erasure."
+        )
+
+    if not matching_drive.get("safe_for_erasure"):
+        reason = matching_drive.get("unsafe_reason") or "device is not safe"
+        raise PermissionError(f"Refusing erasure: {reason}.")
+
+
 def _run_erasure_job(job_id: str, request: ErasureRequest, username: str):
     job_store.mark_running(job_id)
     try:
@@ -94,6 +119,11 @@ def execute_erasure(
             status_code=403,
             detail="Insufficient privileges for media destruction.",
         )
+
+    try:
+        _validate_device_target(request.target_path)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
     if request.async_job:
         async_job = job_store.create(

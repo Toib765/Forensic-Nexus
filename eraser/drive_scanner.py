@@ -37,7 +37,10 @@ class DriveScanner:
 
         path = device.get("path") or ""
 
-        if root_device and (path == root_device or root_device.startswith(path)):
+        if root_device and (
+            path == root_device
+            or root_device.startswith(path.rstrip("/") + "/")
+        ):
             return True
 
         return False
@@ -46,7 +49,8 @@ class DriveScanner:
         path = device.get("path")
         mountpoint = device.get("mountpoint")
         mounted = bool(mountpoint)
-        read_only = bool(device.get("ro"))
+        read_only_value = device.get("ro")
+        read_only = read_only_value in {1, "1", "true", "True"}
         system_device = self._is_system_device(device, root_device)
 
         if system_device:
